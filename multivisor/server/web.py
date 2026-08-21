@@ -37,6 +37,9 @@ log = logging.getLogger("multivisor")
 app = Flask(__name__, static_folder="./dist/assets", template_folder="./dist")
 CORS(app)
 
+SSE_HEARTBEAT_INTERVAL = 15
+SSE_HEARTBEAT = ": keepalive\n\n"
+
 
 @app.route("/api/admin/reload")
 @login_required(app)
@@ -203,14 +206,28 @@ def logout():
 @app.route("/api/stream")
 @login_required(app)
 def stream():
-    def event_stream():
-        client = queue.Queue()
-        app.dispatcher.add_listener(client)
-        for event in client:
-            yield event
-        app.dispatcher.remove_listener(client)
+    response = Response(
+        iter_sse_events(app.dispatcher), mimetype="text/event-stream"
+    )
+    response.headers["Cache-Control"] = "no-cache"
+    response.headers["X-Accel-Buffering"] = "no"
+    return response
 
-    return Response(event_stream(), mimetype="text/event-stream")
+
+def iter_sse_events(dispatcher, heartbeat_interval=SSE_HEARTBEAT_INTERVAL):
+    client = queue.Queue()
+    dispatcher.add_listener(client)
+    try:
+        # Comments are ignored by EventSource. An immediate one flushes the
+        # response headers, and subsequent ones keep idle proxy connections alive.
+        yield SSE_HEARTBEAT
+        while True:
+            try:
+                yield client.get(timeout=heartbeat_interval)
+            except queue.Empty:
+                yield SSE_HEARTBEAT
+    finally:
+        dispatcher.remove_listener(client)
 
 
 @app.route("/favicon.ico")
