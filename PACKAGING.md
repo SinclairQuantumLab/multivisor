@@ -2,7 +2,7 @@
 
 ## Frontend
 
-Use Node.js 18 or newer and npm 8 or newer. The lockfile contains optional
+Use Node.js 20.19 or newer and npm 10 or newer. The lockfile contains optional
 packages for every supported platform, so always use the clean-install command:
 
 ```console
@@ -21,10 +21,23 @@ the updated source, lockfile, and `multivisor/server/dist` together.
 
 ## Python distributions
 
+Python development uses the committed `uv.lock`. Create or update the local
+environment with all Multivisor components and the default development group:
+
+```console
+uv sync --frozen --all-extras
+uv run pytest
+```
+
+When dependencies change, run `uv lock` and commit `pyproject.toml` and
+`uv.lock` together. CI and release jobs should use `--frozen` or `--locked` so
+they fail rather than silently changing the resolved environment.
+
 Build the source distribution and wheel after the frontend has been rebuilt:
 
 ```console
-uv build
+uv lock --check
+uv build --no-sources
 ```
 
 Inspect or install the wheel in a clean environment before publishing it. The

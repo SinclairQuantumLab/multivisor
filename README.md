@@ -10,7 +10,7 @@
 [![Python Versions][pypi-python-versions]](https://pypi.python.org/pypi/multivisor)
 [![Pypi status][pypi-status]](https://pypi.python.org/pypi/multivisor)
 ![License][license]
-[![Build Status][build]](https://travis-ci.org/guy881/multivisor)
+[![Python][python-build]](https://github.com/SinclairQuantumLab/multivisor/actions/workflows/python.yml)
 
 A centralized supervisor UI (Web & CLI)
 
@@ -42,13 +42,12 @@ well with [supervisor-win](https://pypi.org/project/supervisor-win/).
 ### RPC
 
 The multivisor RPC must be installed in the same environment(s) as your
-supervisord instances. It can be installed on python environments ranging from
-2.7 to 3.x.
+supervisord instances. Multivisor requires Python 3.10 or newer.
 
 From within the same python environment as your supervisord process, type:
 
 ```bash
-pip install multivisor[rpc]
+uv pip install 'multivisor[rpc]'
 ```
 
 There are two options to configure multivisor RPC: 1) as an extra
@@ -102,7 +101,7 @@ installed on a machine with a network access to the different supervisors.
 This is achieved with:
 
 ```bash
-pip install multivisor[web]
+uv tool install 'multivisor[web]'
 ```
 
 The web server is configured with a INI like configuration file
@@ -181,7 +180,7 @@ You can generate some random hash easily using python:
 The multivisor CLI is an optional component which can be installed with:
 
 ```bash
-pip install multivisor[cli]
+uv tool install 'multivisor[cli]'
 ```
 
 The CLI connects directly to the web server using an HTTP REST API.
@@ -210,27 +209,26 @@ Start a browser pointing to [localhost:22000](http://localhost:22000).
 
 ```bash
 # Fetch the project:
-git clone https://github.com/tiagocoutinho/multivisor
+git clone https://github.com/SinclairQuantumLab/multivisor
 cd multivisor
 
 
 # Install frontend dependencies
-npm install
+npm ci
 # Build for production with minification
 npm run build
 
-# feel free to use your favorite python virtual environment
-# here. Otherwise you will need administrative privileges
-pip install .[all]
+# Create .venv from the committed lockfile and install every component
+uv sync --frozen --all-extras
 
 # Launch a few supervisors
 mkdir examples/full_example/log
-supervisord -c examples/full_example/supervisord_lid001.conf
-supervisord -c examples/full_example/supervisord_lid002.conf
-supervisord -c examples/full_example/supervisord_baslid001.conf
+uv run supervisord -c examples/full_example/supervisord_lid001.conf
+uv run supervisord -c examples/full_example/supervisord_lid002.conf
+uv run supervisord -c examples/full_example/supervisord_baslid001.conf
 
 # Finally, launch multivisor:
-multivisor -c examples/full_example/multivisor.conf
+uv run multivisor -c examples/full_example/multivisor.conf
 ```
 
 That's it!
@@ -257,15 +255,17 @@ The frontend is based on [vue](https://vuejs.org/) +
 ## Build & Install
 
 ```bash
+# Install the locked Python environment and all optional components
+uv sync --frozen --all-extras
 
-# install frontend
-npm install
+# Install the locked frontend dependencies
+npm ci
 
 # build for production with minification
 npm run build
 
-# install backend
-pip install -e .
+# Run the test suite
+uv run pytest
 
 ```
 
@@ -273,7 +273,7 @@ pip install -e .
 
 ```bash
 # serve at localhost:22000
-multivisor -c multivisor.conf
+uv run multivisor -c multivisor.conf
 ```
 
 Start a browser pointing to [localhost:22000](http://localhost:22000)
@@ -286,7 +286,7 @@ development cycle:
 First, start multivisor (which listens on 22000 by default):
 
 ```bash
-python -m multivisor.server.web -c multivisor.conf
+uv run python -m multivisor.server.web -c multivisor.conf
 ```
 
 Now, in another console, run the vite dev server (it will
@@ -304,4 +304,4 @@ directly on your browser.
 [pypi-version]: https://img.shields.io/pypi/v/multivisor.svg
 [pypi-status]: https://img.shields.io/pypi/status/multivisor.svg
 [license]: https://img.shields.io/pypi/l/multivisor.svg
-[build]: https://travis-ci.org/guy881/multivisor.svg?branch=develop
+[python-build]: https://github.com/SinclairQuantumLab/multivisor/actions/workflows/python.yml/badge.svg

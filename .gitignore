@@ -1,6 +1,6 @@
 .DS_Store
 node_modules
-/dist
+.venv/
 
 # local env files
 .env.local
@@ -16,6 +16,9 @@ pnpm-debug.log*
 supervisord.log*
 supervisord.pid*
 tests/log
+.pytest_cache/
+.coverage*
+htmlcov/
 
 # Editor directories and files
 .vscode/*
