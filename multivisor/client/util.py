@@ -4,7 +4,9 @@ import collections
 def group_processes_status_by(processes, group_by="group", process_filter=None):
     result = collections.defaultdict(lambda: dict(processes={}))
     if process_filter is None:
-        process_filter = lambda p: True
+        def process_filter(_process):
+            return True
+
     for uid, process in processes.items():
         if not process_filter(process):
             continue
@@ -16,7 +18,7 @@ def group_processes_status_by(processes, group_by="group", process_filter=None):
 
 
 def default_process_status(process, max_puid_len=10, group_by="group"):
-    nuid = "{{uid:{}}}".format(max_puid_len).format(uid=process["uid"])
+    nuid = f"{{uid:{max_puid_len}}}".format(uid=process["uid"])
     if group_by in (None, "process"):
         template = "{nuid} {statename:8} {description}"
     else:
@@ -37,7 +39,9 @@ def processes_status(
         puid_len = 8
     result = []
     if process_filter is None:
-        process_filter = lambda p: True
+        def process_filter(_process):
+            return True
+
     if group_by in (None, "process"):
         for puid in sorted(processes):
             process = processes[puid]

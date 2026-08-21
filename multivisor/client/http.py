@@ -4,7 +4,7 @@ import requests
 from blinker import signal
 
 
-class Multivisor(object):
+class Multivisor:
     def __init__(self, url):
         self.url = url
         self._status = None
@@ -26,12 +26,12 @@ class Multivisor(object):
     def _update_status_stats(status):
         supervisors, processes = status["supervisors"], status["processes"]
         s_stats = dict(
-            running=sum((s["running"] for s in status["supervisors"].values())),
+            running=sum(s["running"] for s in status["supervisors"].values()),
             total=len(supervisors),
         )
         s_stats["stopped"] = s_stats["total"] - s_stats["running"]
         p_stats = dict(
-            running=sum((p["running"] for p in status["processes"].values())),
+            running=sum(p["running"] for p in status["processes"].values()),
             total=len(processes),
         )
         p_stats["stopped"] = p_stats["total"] - p_stats["running"]

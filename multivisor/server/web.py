@@ -1,7 +1,5 @@
-import hashlib
 import functools
 
-import gevent
 from blinker import signal
 from gevent.monkey import patch_all
 
@@ -109,7 +107,7 @@ def shutdown_supervisor():
 @login_required(app)
 def restart_process():
     patterns = request.form["uid"].split(",")
-    procs = app.multivisor.restart_processes(*patterns)
+    app.multivisor.restart_processes(*patterns)
     return "OK"
 
 
@@ -164,7 +162,7 @@ def process_log_tail(stream, uid):
                 length = min(length * 2, 2 ** 14)
             else:
                 data = json.dumps(dict(message=log, size=offset))
-                yield "data: {}\n\n".format(data)
+                yield f"data: {data}\n\n"
             sleep(1)
             i += 1
 
@@ -206,8 +204,7 @@ def stream():
     def event_stream():
         client = queue.Queue()
         app.dispatcher.add_listener(client)
-        for event in client:
-            yield event
+        yield from client
         app.dispatcher.remove_listener(client)
 
     return Response(event_stream(), mimetype="text/event-stream")
@@ -224,7 +221,7 @@ def catch_all(path):
     return render_template("index.html")
 
 
-class Dispatcher(object):
+class Dispatcher:
     def __init__(self):
         self.clients = []
         for signal_name in SIGNALS:
@@ -238,7 +235,7 @@ class Dispatcher(object):
 
     def on_multivisor_event(self, signal, payload):
         data = json.dumps(dict(payload=payload, event=signal))
-        event = "data: {0}\n\n".format(data)
+        event = f"data: {data}\n\n"
         for client in self.clients:
             client.put(event)
 

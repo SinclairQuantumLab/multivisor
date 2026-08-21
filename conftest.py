@@ -1,9 +1,12 @@
+"""Shared unit and integration fixtures for the repository test suite."""
+
 from gevent.monkey import patch_all
 
 patch_all(thread=False)
 
 
 import os
+import shutil
 import signal
 import subprocess
 import sys
@@ -16,6 +19,12 @@ from requests import ConnectionError
 from multivisor.multivisor import Multivisor
 from multivisor.multivisor import Supervisor
 from multivisor.server.web import get_parser
+
+
+def rpc_host_unavailable(message):
+    if os.environ.get("MULTIVISOR_REQUIRE_RPC_HOST") == "1":
+        pytest.fail(message, pytrace=False)
+    pytest.skip(message)
 
 
 def start_process(command, env=None):
@@ -65,12 +74,22 @@ def multivisor_instance(basic_options):
     return multivisor
 
 
-@pytest.fixture(autouse=True, scope="session")
+@pytest.fixture(scope="session")
 def supervisor_test001():
+    supervisord = os.environ.get("MULTIVISOR_TEST_SUPERVISORD", "supervisord")
+    supervisord = shutil.which(supervisord)
+    if supervisord is None:
+        rpc_host_unavailable(
+            "Supervisor is a peer runtime; install the rpc-test dependency group "
+            "to run integration tests"
+        )
+
     environment = os.environ.copy()
-    environment["MULTIVISOR_TEST_PYTHON"] = sys.executable
+    environment["MULTIVISOR_TEST_PYTHON"] = os.environ.get(
+        "MULTIVISOR_TEST_PROCESS_PYTHON", sys.executable
+    )
     process = start_process(
-        ["supervisord", "-n", "-c", "tests/supervisord_test001.conf"],
+        [supervisord, "-n", "-c", "tests/supervisord_test001.conf"],
         env=environment,
     )
 
@@ -93,7 +112,63 @@ def supervisor_test001():
         pass  # process already dead
 
 
-@pytest.fixture(autouse=True, scope="session")
+@pytest.fixture(scope="session")
+def supervisor_eventlistener():
+    supervisord = os.environ.get("MULTIVISOR_TEST_SUPERVISORD", "supervisord")
+    supervisord = shutil.which(supervisord)
+    if supervisord is None:
+        rpc_host_unavailable(
+            "Supervisor is a peer runtime; install the rpc-test dependency group "
+            "to run integration tests"
+        )
+
+    executable_suffix = ".exe" if os.name == "nt" else ""
+    sibling_rpc = os.path.join(
+        os.path.dirname(supervisord), f"multivisor-rpc{executable_suffix}"
+    )
+    rpc_command = os.environ.get("MULTIVISOR_TEST_RPC_COMMAND", sibling_rpc)
+    rpc_command = shutil.which(rpc_command)
+    if rpc_command is None:
+        rpc_host_unavailable(
+            "multivisor-rpc is not installed in the Supervisor environment"
+        )
+    if os.name == "nt":
+        # Supervisor parses command strings with POSIX-style backslash escaping.
+        rpc_command = rpc_command.replace("\\", "/")
+
+    environment = os.environ.copy()
+    environment["MULTIVISOR_TEST_RPC_COMMAND"] = rpc_command
+    environment["MULTIVISOR_TEST_PYTHON"] = os.environ.get(
+        "MULTIVISOR_TEST_PROCESS_PYTHON", sys.executable
+    )
+    process = start_process(
+        [supervisord, "-n", "-c", "tests/supervisord_eventlistener.conf"],
+        env=environment,
+    )
+
+    try:
+        supervisor = Supervisor("eventlistener", "tcp://localhost:9076")
+        for _ in range(100):
+            if process.poll() is not None:
+                raise RuntimeError(
+                    "eventlistener test supervisord exited before becoming ready"
+                )
+            info = supervisor.read_info()
+            if info["running"]:
+                break
+            sleep(0.1)
+        else:
+            raise RuntimeError("eventlistener RPC adapter did not become ready")
+
+        yield supervisor
+    finally:
+        try:
+            stop_process(process)
+        except OSError:
+            pass  # process already dead
+
+
+@pytest.fixture(scope="session")
 def server(supervisor_test001, base_url):
     process = start_process(
         [
@@ -130,5 +205,5 @@ def base_url():
 
 
 @pytest.fixture(scope="session")
-def api_base_url(base_url):
-    return "{}/api".format(base_url)
+def api_base_url(server, base_url):
+    return f"{base_url}/api"

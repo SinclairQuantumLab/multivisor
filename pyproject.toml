@@ -6,8 +6,17 @@ build-backend = "setuptools.build_meta"
 version_scheme = "guess-next-dev"
 fallback_version = "0.0.0"
 
+[tool.setuptools]
+include-package-data = false
+
 [tool.setuptools.packages.find]
 include = ["multivisor", "multivisor.*"]
+exclude = [
+    "multivisor.tests",
+    "multivisor.tests.*",
+    "multivisor.server.tests",
+    "multivisor.server.tests.*",
+]
 
 [tool.setuptools.package-data]
 "multivisor.server" = ["dist/*", "dist/assets/*"]
@@ -20,7 +29,7 @@ description = "A centralized supervisor UI (web & CLI)"
 readme = "README.md"
 license = "GPL-3.0-or-later"
 license-files = ["LICENSE"]
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 classifiers = [
     "Development Status :: 4 - Beta",
     "Environment :: Console",
@@ -34,12 +43,15 @@ classifiers = [
     "Operating System :: Microsoft :: Windows",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: System :: Boot",
     "Topic :: System :: Monitoring",
     "Topic :: System :: Systems Administration",
 ]
 dependencies = [
-    "gevent>=24.2.1",
+    "gevent>=25.9.1",
 ]
 
 [project.urls]
@@ -54,8 +66,6 @@ multivisor-cli = "multivisor.client.cli:main"
 [project.optional-dependencies]
 rpc = [
     "zerorpc>=0.6.3",
-    "supervisor>=4.2.5; platform_system != 'Windows'",
-    "supervisor-win>=4.6.0; platform_system == 'Windows'",
 ]
 web = [
     "blinker>=1.8",
@@ -63,8 +73,6 @@ web = [
     "flask-cors>=5.0",
     "werkzeug>=3.0",
     "zerorpc>=0.6.3",
-    "supervisor>=4.2.5; platform_system != 'Windows'",
-    "supervisor-win>=4.6.0; platform_system == 'Windows'",
 ]
 cli = [
     "blinker>=1.8",
@@ -81,15 +89,32 @@ all = [
     "requests>=2.32",
     "werkzeug>=3.0",
     "zerorpc>=0.6.3",
-    "supervisor>=4.2.5; platform_system != 'Windows'",
-    "supervisor-win>=4.6.0; platform_system == 'Windows'",
+]
+docker = [
+    "supervisor>=4.3.0; platform_system != 'Windows'",
 ]
 
 [dependency-groups]
 dev = [
     "pytest>=8.3",
     "requests>=2.32",
+    "ruff>=0.12",
+]
+rpc-test = [
+    "supervisor>=4.3.0; platform_system != 'Windows'",
+    "supervisor-win>=4.7.0; platform_system == 'Windows' and python_version < '3.13'",
 ]
 
 [tool.uv]
 package = true
+
+[tool.ruff]
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "UP"]
+
+[tool.ruff.lint.per-file-ignores]
+"multivisor/client/cli.py" = ["E402"]
+"multivisor/server/web.py" = ["E402"]
+"conftest.py" = ["E402"]

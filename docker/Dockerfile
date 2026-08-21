@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-FROM python:3.12-alpine AS build
+FROM python:3.14-alpine AS build
 
 COPY --from=ghcr.io/astral-sh/uv:0.11.7 /uv /uvx /bin/
 
@@ -12,9 +12,9 @@ COPY . multivisor/
 WORKDIR /usr/app/multivisor
 
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-dev --extra rpc --extra web --no-editable
+    uv sync --frozen --no-dev --extra docker --extra rpc --extra web --no-editable
 
-FROM python:3.12-alpine
+FROM python:3.14-alpine
 
 RUN mkdir /var/log/supervisord
 
@@ -25,3 +25,11 @@ ENV PATH=/usr/app/venv/bin:$PATH
 COPY docker/multivisor/multivisor.conf /etc/
 COPY docker/supervisord/ /etc/supervisord
 COPY docker/bin/* /usr/local/bin/
+RUN sed -i 's/\r$//' \
+    /usr/local/bin/CT2 \
+    /usr/local/bin/Lima \
+    /usr/local/bin/demo \
+    /usr/local/bin/exits \
+    /usr/local/bin/talkative \
+    /usr/local/bin/vacuum \
+    /usr/local/bin/wago

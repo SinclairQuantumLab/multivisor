@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 import copy
 import logging
 import os
@@ -6,17 +6,12 @@ import time
 import weakref
 
 from blinker import signal
-
-try:
-    from ConfigParser import SafeConfigParser as ConfigParser
-except ImportError:
-    from configparser import ConfigParser
+from configparser import ConfigParser
 
 import zerorpc
 from gevent import spawn, sleep, joinall
-from supervisor.xmlrpc import Faults
-from supervisor.states import RUNNING_STATES
 
+from .supervisor_protocol import FAULT_FAILED, RUNNING_STATES
 from .util import sanitize_url, filter_patterns, parse_dict
 
 log = logging.getLogger("multivisor")
@@ -35,7 +30,7 @@ class Supervisor(dict):
     }
 
     def __init__(self, name, url):
-        super(Supervisor, self).__init__(self.Null)
+        super().__init__(self.Null)
         self.name = self["name"] = name
         self.url = self["url"] = url
         self.log = log.getChild(name)
@@ -47,7 +42,7 @@ class Supervisor(dict):
         self.event_loop = spawn(self.run)
 
     def __repr__(self):
-        return "{}(name={})".format(self.__class__.__name__, self.name)
+        return f"{self.__class__.__name__}(name={self.name})"
 
     def __eq__(self, other):
         this, other = dict(self), dict(other)
@@ -178,7 +173,7 @@ class Supervisor(dict):
             results = server.stopProcessGroup(gname)
             self.log.debug("stopped process group %s", gname)
 
-            fails = [res for res in results if res["status"] == Faults.FAILED]
+            fails = [res for res in results if res["status"] == FAULT_FAILED]
             if fails:
                 self.log.debug("%s as problems; not removing", gname)
                 continue
@@ -212,13 +207,13 @@ class Supervisor(dict):
         try:
             self._reread()
         except zerorpc.RemoteError as rerr:
-            error("Cannot restart: {}".format(rerr.msg))
+            error(f"Cannot restart: {rerr.msg}")
             return
         result = self.server.restart(timeout=30)
         if result:
-            info("Restarted {}".format(self.name))
+            info(f"Restarted {self.name}")
         else:
-            error("Error restarting {}".format(self.name))
+            error(f"Error restarting {self.name}")
 
     def reread(self):
         try:
@@ -227,18 +222,16 @@ class Supervisor(dict):
             error(rerr.msg)
         else:
             info(
-                "Reread config of {} "
-                "({} added; {} changed; {} disappeared)".format(
-                    self.name, len(added), len(changed), len(removed)
-                )
+                f"Reread config of {self.name} "
+                f"({len(added)} added; {len(changed)} changed; {len(removed)} disappeared)"
             )
 
     def shutdown(self):
         result = self.server.shutdown()
         if result:
-            info("Shut down {}".format(self.name))
+            info(f"Shut down {self.name}")
         else:
-            error("Error shutting down {}".format(self.name))
+            error(f"Error shutting down {self.name}")
 
 
 class Process(dict):
@@ -246,13 +239,13 @@ class Process(dict):
     Null = {"running": False, "pid": None, "state": None, "statename": "UNKNOWN"}
 
     def __init__(self, supervisor, *args, **kwargs):
-        super(Process, self).__init__(self.Null)
+        super().__init__(self.Null)
         if args:
             self.update(args[0])
         self.update(kwargs)
         supervisor_name = supervisor["name"]
         full_name = self.get("group", "") + ":" + self.get("name", "")
-        uid = "{}:{}".format(supervisor_name, full_name)
+        uid = f"{supervisor_name}:{full_name}"
         self.log = log.getChild(uid)
         self.supervisor = weakref.proxy(supervisor)
         self["full_name"] = full_name
@@ -282,9 +275,7 @@ class Process(dict):
                     send(self, event="process_changed")
                     if old_state != new_state:
                         info(
-                            "{} changed from {} to {}".format(
-                                self, old_state, new_state
-                            )
+                            f"{self} changed from {old_state} to {new_state}"
                         )
 
     def read_info(self):
@@ -293,7 +284,7 @@ class Process(dict):
             from_serv = parse_dict(self.server.getProcessInfo(self.full_name))
             proc_info.update(from_serv)
         except Exception as err:
-            self.log.warn("Failed to read info from %s: %s", self["uid"], err)
+            self.log.warning("Failed to read info from %s: %s", self["uid"], err)
         return proc_info
 
     def update_info(self, proc_info):
@@ -310,16 +301,16 @@ class Process(dict):
     def start(self):
         try:
             self.server.startProcess(self.full_name, False, timeout=30)
-        except:
-            message = "Error trying to start {}!".format(self)
+        except Exception:
+            message = f"Error trying to start {self}!"
             error(message)
             self.log.exception(message)
 
     def stop(self):
         try:
             self.server.stopProcess(self.full_name)
-        except:
-            message = "Failed to stop {}".format(self["uid"])
+        except Exception:
+            message = f'Failed to stop {self["uid"]}'
             warning(message)
             self.log.exception(message)
 
@@ -329,7 +320,7 @@ class Process(dict):
         self.start()
 
     def __str__(self):
-        return "{0} on {1}".format(self["name"], self["supervisor"])
+        return f'{self["name"]} on {self["supervisor"]}'
 
     def __eq__(self, proc):
         p1, p2 = dict(self), dict(proc)
@@ -354,7 +345,6 @@ def load_config(config_file):
     supervisors = {}
     config = dict(dft_global, supervisors=supervisors)
     config.update(parser.items("global"))
-    tasks = []
     for section in parser.sections():
         if not section.startswith("supervisor:"):
             continue
@@ -389,7 +379,7 @@ def error(message):
     notification(message, "ERROR")
 
 
-class Multivisor(object):
+class Multivisor:
     def __init__(self, options):
         self.options = options
         self.reload()

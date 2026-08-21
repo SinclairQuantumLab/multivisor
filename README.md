@@ -31,10 +31,24 @@ Multivisor is comprised of 3 components:
    between each supervisord and multivisor web server
 1. **CLI**: an optional CLI which communicates with multivisor web server
 
+The web server and CLI are central components; they do not run Supervisor
+internally. Each managed host runs Supervisor plus either the in-process
+`multivisor.rpc` interface or the `multivisor-rpc` event-listener bridge. The
+central process reaches those bridges over ZeroRPC, so the two sides may use
+different Python environments or different computers.
+
+Multivisor's tested compatibility lanes are CPython 3.12, 3.13, and 3.14.
+CPython 3.14 is the recommended runtime for the central web server and CLI. On
+Windows, keep a
+`supervisor-win` RPC host on CPython 3.12 because its `pywin32<=306` dependency
+does not provide CPython 3.13 or 3.14 wheels. This does not hold the central
+component back: the same Multivisor distribution installs in both the Python
+3.14 central environment and the Python 3.12 RPC-host environment.
+
 ## Installation and configuration
 
-The installation and configuration steps are exactly the same on Linux and
-Windows.
+The configuration format is the same on Linux and Windows. The Python runtime
+topology differs on Windows as described below.
 
 Thanks to the [ESRF](https://esrf.eu) sponsorship, multivisor is able to work
 well with [supervisor-win](https://pypi.org/project/supervisor-win/).
@@ -42,7 +56,13 @@ well with [supervisor-win](https://pypi.org/project/supervisor-win/).
 ### RPC
 
 The multivisor RPC must be installed in the same environment(s) as your
-supervisord instances. Multivisor requires Python 3.10 or newer.
+supervisord instances. The `rpc` extra installs ZeroRPC; it deliberately does
+not install or replace Supervisor itself.
+
+On Unix, use Supervisor 4.3.0 or newer with Python 3.12, 3.13, or 3.14. On
+Windows, use `supervisor-win 4.7.0` on CPython 3.12 while its current dependency
+constraint remains in place. These are peer-runtime requirements and therefore
+are documented rather than installed by the public `rpc` extra.
 
 From within the same python environment as your supervisord process, type:
 
@@ -96,12 +116,12 @@ Repeat the above procedure for every supervisor you have running.
 
 ### Web server
 
-The multivisor web server requires a python 3.x environment. It must be
-installed on a machine with a network access to the different supervisors.
-This is achieved with:
+The multivisor web server requires Python 3.12 or newer and is independent of
+the Python used by each Supervisor host. It must be installed on a machine with
+network access to the different supervisors. CPython 3.14 is recommended:
 
 ```bash
-uv tool install 'multivisor[web]'
+uv tool install --python 3.14 'multivisor[web]'
 ```
 
 The web server is configured with a INI like configuration file
@@ -180,7 +200,7 @@ You can generate some random hash easily using python:
 The multivisor CLI is an optional component which can be installed with:
 
 ```bash
-uv tool install 'multivisor[cli]'
+uv tool install --python 3.14 'multivisor[cli]'
 ```
 
 The CLI connects directly to the web server using an HTTP REST API.
@@ -218,8 +238,9 @@ npm ci
 # Build for production with minification
 npm run build
 
-# Create .venv from the committed lockfile and install every component
-uv sync --frozen --all-extras
+# Create .venv from the committed lockfile. The RPC test group installs
+# Supervisor for this Unix demonstration.
+uv sync --frozen --extra all --group rpc-test
 
 # Launch a few supervisors
 mkdir examples/full_example/log
@@ -255,8 +276,11 @@ The frontend is based on [vue](https://vuejs.org/) +
 ## Build & Install
 
 ```bash
-# Install the locked Python environment and all optional components
-uv sync --frozen --all-extras
+# Install the locked central web/CLI development environment
+uv sync --frozen --extra all
+
+# Unix: add Supervisor only for RPC integration work.
+uv sync --frozen --extra all --group rpc-test
 
 # Install the locked frontend dependencies
 npm ci
@@ -268,6 +292,19 @@ npm run build
 uv run pytest
 
 ```
+
+On Windows, keep the default central environment on Python 3.14 and create the
+RPC test host separately on Python 3.12:
+
+```powershell
+uv venv --python 3.12 .venv-rpc
+$env:VIRTUAL_ENV = (Resolve-Path .venv-rpc).Path
+uv sync --active --python 3.12 --frozen --extra rpc --no-default-groups --group rpc-test
+Remove-Item Env:VIRTUAL_ENV
+```
+
+See the [migration ledger](.agents/CHANGELOG.md#validation-procedure) for the
+complete cross-runtime test command.
 
 ## Run
 

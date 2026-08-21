@@ -1,1 +1,5 @@
 multivisor/server/dist/** -text
+docker/bin/* text eol=lf
+examples/full_example/demo text eol=lf
+examples/full_example/exits text eol=lf
+examples/full_example/talkative text eol=lf
