@@ -1,6 +1,6 @@
 <template>
   <v-card>
-    <v-toolbar dense :color="toolbarColor" dark>
+    <v-toolbar density="compact" :color="toolbarColor" dark>
       <v-toolbar-title
         >{{ supervisor.name }}
         <span v-if="inactive">(offline)</span></v-toolbar-title

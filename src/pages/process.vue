@@ -32,7 +32,8 @@
       </template>
       <template v-slot:item.actions="{ item }">
         <v-btn
-          icon flat
+          icon
+          variant="flat"
           size="small"
           @click="restartProcess(item)"
           class="mx-0 my-1"
@@ -43,7 +44,8 @@
           </v-icon>
         </v-btn>
         <v-btn
-          icon flat
+          icon
+          variant="flat"
           size="small"
           @click="stopProcess(item)"
           :disabled="!item.running"
@@ -53,7 +55,11 @@
         </v-btn>
         <v-menu open-on-hover>
           <template v-slot:activator="{ props }">
-            <v-btn icon="mdi-dots-vertical" flat v-bind="props"></v-btn>
+            <v-btn
+              icon="mdi-dots-vertical"
+              variant="flat"
+              v-bind="props"
+            ></v-btn>
           </template>
           <v-list>
             <v-list-item @click="viewDetails(item)">
@@ -64,8 +70,8 @@
             </v-list-item>
             <v-list-item @click="viewLog(item, 'out')" v-if="item.logfile">
               <v-list-item-title
-                ><v-icon size="small">mdi-file-document-alert-outline</v-icon>Log
-                stdout</v-list-item-title
+                ><v-icon size="small">mdi-file-document-alert-outline</v-icon
+                >Log stdout</v-list-item-title
               >
             </v-list-item>
             <v-list-item
@@ -73,8 +79,8 @@
               v-if="item.stderr_logfile"
             >
               <v-list-item-title
-                ><v-icon size="small">mdi-file-document-alert-outline</v-icon>Log
-                stderr</v-list-item-title
+                ><v-icon size="small">mdi-file-document-alert-outline</v-icon
+                >Log stderr</v-list-item-title
               >
             </v-list-item>
           </v-list>

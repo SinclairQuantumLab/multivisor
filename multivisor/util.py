@@ -6,9 +6,9 @@ try:
 except ImportError:
     import collections as abc
 
-_PROTO_RE_STR = "(?P<protocol>\w+)\://"
-_HOST_RE_STR = "?P<host>([\w\-_]+\.)*[\w\-_]+|\*"
-_PORT_RE_STR = "\:(?P<port>\d{1,5})"
+_PROTO_RE_STR = r"(?P<protocol>\w+)://"
+_HOST_RE_STR = r"?P<host>([\w\-_]+\.)*[\w\-_]+|\*"
+_PORT_RE_STR = r":(?P<port>\d{1,5})"
 
 URL_RE = re.compile(
     "({protocol})?({host})?({port})?".format(
