@@ -12,11 +12,24 @@ import { routes } from "vue-router/auto-routes";
 import { useAppStore } from "@/stores/app";
 import * as api from "@/api";
 
-const loginRequired = { meta: { requiresAuth: true } };
+const applicationRoutes = routes.map((route) => ({
+  ...route,
+  meta: {
+    ...route.meta,
+    requiresAuth: route.path !== "/login",
+  },
+}));
+
+const redirects = [
+  { path: "/", redirect: "/group" },
+  { path: "/view/group", redirect: "/group" },
+  { path: "/view/process", redirect: "/process" },
+  { path: "/view/supervisor", redirect: "/supervisor" },
+];
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
-  routes: setupLayouts(routes),
+  routes: [...redirects, ...setupLayouts(applicationRoutes)],
 });
 
 // Workaround for https://github.com/vitejs/vite/issues/11804
@@ -55,8 +68,8 @@ router.beforeEach(async function (to, from, next) {
     store.setIsAuthenticated(data.is_authenticated);
   }
   if (!store.useAuthentication) {
-    if (to.name === "Login") {
-      return next({ name: "Group" });
+    if (to.path === "/login") {
+      return next({ path: "/group" });
     }
     return next();
   }
@@ -65,11 +78,11 @@ router.beforeEach(async function (to, from, next) {
   );
   // if user is not authenticated and route requires login -> redirect to login page
   if (!store.isAuthenticated && loginRequiredRoute) {
-    return next({ name: "Login" });
+    return next({ path: "/login" });
   }
   // if user is authenticated and navigates to login page -> redirect to home page
-  if (to.name === "Login" && store.isAuthenticated) {
-    return next({ name: "Group" });
+  if (to.path === "/login" && store.isAuthenticated) {
+    return next({ path: "/group" });
   }
   return next();
 });

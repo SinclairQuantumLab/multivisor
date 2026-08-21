@@ -12,18 +12,23 @@
 
     <template v-slot:append>
       <ProcessState :state="process.statename"></ProcessState>
-      <v-btn flat icon @click="restartProcess(process)">
+      <v-btn variant="flat" icon @click="restartProcess(process)">
         <v-icon color="green">
           <template v-if="process.running">mdi-autorenew</template>
           <template v-else>mdi-play</template>
         </v-icon>
       </v-btn>
-      <v-btn flat icon @click="stopProcess(process)" :disabled="!process.running">
+      <v-btn
+        variant="flat"
+        icon
+        @click="stopProcess(process)"
+        :disabled="!process.running"
+      >
         <v-icon color="red">mdi-stop</v-icon>
       </v-btn>
       <v-menu open-on-hover>
         <template v-slot:activator="{ props }">
-          <v-btn flat  icon="mdi-dots-vertical" v-bind="props"></v-btn>
+          <v-btn variant="flat" icon="mdi-dots-vertical" v-bind="props"></v-btn>
         </template>
         <v-list>
           <v-list-item @click="viewDetails(process)">

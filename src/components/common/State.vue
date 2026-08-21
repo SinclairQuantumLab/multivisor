@@ -3,7 +3,7 @@
     label
     variant="flat"
     :color="stateColorMap[state]"
-    text-color="white"
+    class="text-white"
     :small="small"
   >
     {{ state }}
@@ -15,8 +15,8 @@ import { stateColorMap } from "@/multivisor";
 
 //const props = defineProps(['state', 'small'])
 
-const { state, small } =  defineProps({
+const { state, small } = defineProps({
   state: { default: "UNKNOWN" },
   small: { default: false },
-})
+});
 </script>
