@@ -1,46 +1,38 @@
-# Packaging for PyPi
+# Packaging
 
 ## Frontend
 
-Requires a recent version of nodejs that can be installed with Conda/Pixi for instance.
+Use Node.js 18 or newer and npm 8 or newer. The lockfile contains optional
+packages for every supported platform, so always use the clean-install command:
 
-1. Check for vulnerability with
-
-```
+```console
+npm ci
 npm audit
-...
-20 vulnerabilities (1 moderate, 19 high)
-```
-
-To address issues that do not require attention, run:
-
-```
-npm audit fix
-```
-
-Note that some vulnerabilities may concern only build tools and thus are not something to worry to much about.
-
-2. Build the frontend
-
-To build the frontend in the `dist` folder, run
-
-```
+npm run lint
 npm run build
 ```
 
-## Backend and Wheel
+The production frontend is written to `multivisor/server/dist`. These generated
+files are versioned deliberately: Python wheels and direct Git installs cannot
+assume that Node.js is available while the Python package is being built.
 
-Once the frontend is built, one can generate the Python wheel as usual with:
+After changing frontend source or dependencies, rebuild the frontend and commit
+the updated source, lockfile, and `multivisor/server/dist` together.
 
+## Python distributions
+
+Build the source distribution and wheel after the frontend has been rebuilt:
+
+```console
+uv build
 ```
-python -m build
-...
-removing build/bdist.linux-x86_64/wheel
-Successfully built multivisor-7.0.0rc1.tar.gz and multivisor-7.0.0rc1-py3-none-any.whl
-```
 
-Uploading the package to PyPi requires `twine`:
+Inspect or install the wheel in a clean environment before publishing it. The
+wheel must contain `multivisor/server/dist/index.html`, `favicon.ico`, and all
+referenced assets.
 
-```
-twine upload dist/multivisor-7.0.0rc1-py3-none-any.whl
+To publish a verified release:
+
+```console
+uv publish
 ```
