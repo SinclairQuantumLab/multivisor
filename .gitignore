@@ -17,6 +17,10 @@ supervisord.log*
 supervisord.pid*
 tests/log
 
+# Example files
+examples/full_example/log
+examples/full_example/*.pid
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
@@ -55,3 +59,7 @@ MANIFEST
 # The prebuilt web UI is versioned so wheels and direct Git installs include it.
 !multivisor/server/dist/
 !multivisor/server/dist/**
+
+# Pixi environments
+.pixi/*
+!.pixi/config.toml

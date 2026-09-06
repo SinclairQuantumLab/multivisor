@@ -14,6 +14,12 @@ import { fileURLToPath, URL } from "node:url";
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
+    {
+      name: "normalize-index-html-eol",
+      transformIndexHtml(html) {
+        return html.replace(/\r\n?/g, "\n");
+      },
+    },
     VueRouter(),
     Layouts(),
     Vue({
