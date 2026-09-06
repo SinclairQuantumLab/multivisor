@@ -1,28 +1,20 @@
 import re
 import fnmatch
+from collections import abc
 
-try:
-    from collections import abc
-except ImportError:
-    import collections as abc
-
-import six
-
-_PROTO_RE_STR = "(?P<protocol>\w+)\://"
-_HOST_RE_STR = "?P<host>([\w\-_]+\.)*[\w\-_]+|\*"
-_PORT_RE_STR = "\:(?P<port>\d{1,5})"
+_PROTO_RE_STR = r"(?P<protocol>\w+)://"
+_HOST_RE_STR = r"?P<host>([\w\-_]+\.)*[\w\-_]+|\*"
+_PORT_RE_STR = r":(?P<port>\d{1,5})"
 
 URL_RE = re.compile(
-    "({protocol})?({host})?({port})?".format(
-        protocol=_PROTO_RE_STR, host=_HOST_RE_STR, port=_PORT_RE_STR
-    )
+    f"({_PROTO_RE_STR})?({_HOST_RE_STR})?({_PORT_RE_STR})?"
 )
 
 
 def sanitize_url(url, protocol=None, host=None, port=None):
     match = URL_RE.match(url)
     if match is None:
-        raise ValueError("Invalid URL: {!r}".format(url))
+        raise ValueError(f"Invalid URL: {url!r}")
     pars = match.groupdict()
     _protocol, _host, _port = pars["protocol"], pars["host"], pars["port"]
     protocol = protocol if _protocol is None else _protocol
@@ -31,7 +23,7 @@ def sanitize_url(url, protocol=None, host=None, port=None):
     protocol = "" if protocol is None else (protocol + "://")
     port = "" if port is None else ":" + str(port)
     return dict(
-        url="{}{}{}".format(protocol, host, port),
+        url=f"{protocol}{host}{port}",
         protocol=protocol,
         host=host,
         port=port,
@@ -40,7 +32,7 @@ def sanitize_url(url, protocol=None, host=None, port=None):
 
 def filter_patterns(names, patterns):
     patterns = [
-        "*:{}".format(p) if ":" not in p and "*" not in p else p for p in patterns
+        f"*:{p}" if ":" not in p and "*" not in p else p for p in patterns
     ]
     result = set()
     sets = (fnmatch.filter(names, pattern) for pattern in patterns)
@@ -66,7 +58,7 @@ def parse_obj(obj):
     `obj` can be any objects, including list and dictionary"""
     if isinstance(obj, bytes):
         return obj.decode()
-    elif isinstance(obj, six.text_type):
+    elif isinstance(obj, str):
         return obj
     elif isinstance(obj, abc.Mapping):
         return {parse_obj(k): parse_obj(v) for k, v in obj.items()}

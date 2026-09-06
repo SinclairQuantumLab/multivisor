@@ -1,0 +1,8 @@
+multivisor/server/dist/** -text
+multivisor/server/dist/index.html text eol=lf
+index.html text eol=lf
+
+docker/bin/* text eol=lf
+demo/demo text eol=lf
+demo/exits text eol=lf
+demo/talkative text eol=lf

@@ -1,0 +1,3 @@
+# Runtime artifacts created by the manual and PowerShell full-example launchers.
+*.log
+*.pid

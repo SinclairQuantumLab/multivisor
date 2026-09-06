@@ -1,4 +1,0 @@
-flask
-gevent
-supervisor
-six==1.12.0

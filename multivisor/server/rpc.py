@@ -1,4 +1,3 @@
-from __future__ import print_function
 
 import sys
 import logging
@@ -27,9 +26,9 @@ def signal(stream, msg):
 
 def wait_for_event(stream):
     header_line = stream.readline()
-    event = dict((x.split(":") for x in header_line.split()))
+    event = dict(x.split(":") for x in header_line.split())
     payload_str = stream.read(int(event["len"]))
-    event["payload"] = dict((x.split(":") for x in payload_str.split()))
+    event["payload"] = dict(x.split(":") for x in payload_str.split())
     return event
 
 
@@ -47,7 +46,7 @@ def event_consumer_loop(queue, handler):
     for event in queue:
         try:
             handler(event)
-        except:
+        except Exception:
             logging.exception("Error processing %s", event)
 
 
@@ -64,7 +63,7 @@ def build_method(supervisor, name):
     return func_name, method
 
 
-class Supervisor(object):
+class Supervisor:
 
     def __init__(self, xml_rpc):
         self.event_channels = set()
@@ -80,9 +79,8 @@ class Supervisor(object):
         self.event_channels.add(channel)
         try:
             yield "First event to trigger connection. Please ignore me!"
-            for event in channel:
-                yield event
-        except LostRemote as e:
+            yield from channel
+        except LostRemote:
             logging.info("remote end of stream disconnected")
         finally:
             self.event_channels.remove(channel)
@@ -94,13 +92,13 @@ class Supervisor(object):
         event = dict(event)
         if name.startswith("PROCESS_STATE"):
             payload = event["payload"]
-            pname = "{}:{}".format(payload["groupname"], payload["processname"])
+            pname = f'{payload["groupname"]}:{payload["processname"]}'
             logging.info("handling %s of %s", name, pname)
             try:
                 payload["process"] = self.getProcessInfo(pname)
             except xmlrpc.client.Fault:
                 # probably supervisor is shutting down
-                logging.warn("probably shutting down...")
+                logging.warning("probably shutting down...")
                 return
         elif not name.startswith("SUPERVISOR_STATE"):
             logging.warning("ignored %s", name)
@@ -112,8 +110,8 @@ class Supervisor(object):
 def run(xml_rpc, bind=DEFAULT_BIND):
     channel = Queue()
     supervisor = Supervisor(xml_rpc)
-    t1 = spawn(event_consumer_loop, channel, supervisor.publish_event)
-    t2 = spawn(event_producer_loop, channel.put)
+    spawn(event_consumer_loop, channel, supervisor.publish_event)
+    spawn(event_producer_loop, channel.put)
     server = Server(supervisor)
     server.bind(bind)
     server.run()
@@ -148,7 +146,7 @@ def main(args=None):
         rpc = get_rpc()
     except KeyError:
         print("multivisor-rpc can only run as supervisor eventlistener", file=sys.stderr)
-        exit(1)
+        raise SystemExit(1) from None
     run(rpc, bind)
 
 

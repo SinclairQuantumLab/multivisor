@@ -1,7 +1,5 @@
-import hashlib
 import functools
 
-import gevent
 from blinker import signal
 from gevent.monkey import patch_all
 
@@ -12,7 +10,17 @@ import logging
 
 from gevent import queue, sleep
 from gevent.pywsgi import WSGIServer
-from flask import Flask, render_template, Response, request, json, jsonify, session
+from flask import (
+    Flask,
+    Response,
+    jsonify,
+    json,
+    render_template,
+    request,
+    send_from_directory,
+    session,
+)
+from flask_cors import CORS
 from werkzeug.debug import DebuggedApplication
 from werkzeug.serving import run_simple
 
@@ -24,7 +32,11 @@ from .util import is_login_valid, login_required
 
 log = logging.getLogger("multivisor")
 
-app = Flask(__name__, static_folder="./dist/static", template_folder="./dist")
+app = Flask(__name__, static_folder="./dist/assets", template_folder="./dist")
+CORS(app)
+
+SSE_HEARTBEAT_INTERVAL = 15
+SSE_HEARTBEAT = ": keepalive\n\n"
 
 
 @app.route("/api/admin/reload")
@@ -98,7 +110,7 @@ def shutdown_supervisor():
 @login_required(app)
 def restart_process():
     patterns = request.form["uid"].split(",")
-    procs = app.multivisor.restart_processes(*patterns)
+    app.multivisor.restart_processes(*patterns)
     return "OK"
 
 
@@ -153,7 +165,7 @@ def process_log_tail(stream, uid):
                 length = min(length * 2, 2 ** 14)
             else:
                 data = json.dumps(dict(message=log, size=offset))
-                yield "data: {}\n\n".format(data)
+                yield f"data: {data}\n\n"
             sleep(1)
             i += 1
 
@@ -192,14 +204,33 @@ def logout():
 @app.route("/api/stream")
 @login_required(app)
 def stream():
-    def event_stream():
-        client = queue.Queue()
-        app.dispatcher.add_listener(client)
-        for event in client:
-            yield event
-        app.dispatcher.remove_listener(client)
+    response = Response(
+        iter_sse_events(app.dispatcher), mimetype="text/event-stream"
+    )
+    response.headers["Cache-Control"] = "no-cache"
+    response.headers["X-Accel-Buffering"] = "no"
+    return response
 
-    return Response(event_stream(), mimetype="text/event-stream")
+
+def iter_sse_events(dispatcher, heartbeat_interval=SSE_HEARTBEAT_INTERVAL):
+    client = queue.Queue()
+    dispatcher.add_listener(client)
+    try:
+        # Comments are ignored by EventSource. An immediate one flushes the
+        # response headers, and subsequent ones keep idle proxy connections alive.
+        yield SSE_HEARTBEAT
+        while True:
+            try:
+                yield client.get(timeout=heartbeat_interval)
+            except queue.Empty:
+                yield SSE_HEARTBEAT
+    finally:
+        dispatcher.remove_listener(client)
+
+
+@app.route("/favicon.ico")
+def favicon():
+    return send_from_directory(os.path.join(app.root_path, "dist"), "favicon.ico")
 
 
 @app.route("/", defaults={"path": ""})
@@ -208,7 +239,7 @@ def catch_all(path):
     return render_template("index.html")
 
 
-class Dispatcher(object):
+class Dispatcher:
     def __init__(self):
         self.clients = []
         for signal_name in SIGNALS:
@@ -222,7 +253,7 @@ class Dispatcher(object):
 
     def on_multivisor_event(self, signal, payload):
         data = json.dumps(dict(payload=payload, event=signal))
-        event = "data: {0}\n\n".format(data)
+        event = f"data: {data}\n\n"
         for client in self.clients:
             client.put(event)
 

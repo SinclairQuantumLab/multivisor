@@ -1,8 +1,9 @@
+import contextlib
+from time import sleep
+
 import pytest
 
-from tests.conftest import *
 from tests.functions import assert_fields_in_object
-import contextlib
 
 
 @pytest.mark.usefixtures("supervisor_test001")
@@ -145,6 +146,17 @@ def test_use_authentication(multivisor_instance):
 
 
 @pytest.mark.usefixtures("supervisor_test001")
+def test_reconnect_replaces_client(multivisor_instance):
+    supervisor = multivisor_instance.get_supervisor("test001")
+    stale = supervisor.server
+    supervisor.reconnect()
+    assert supervisor.server is not stale
+    info = supervisor.read_info()
+    assert info["running"]
+    assert len(info["processes"]) == 10
+
+
+@pytest.mark.usefixtures("supervisor_test001")
 def test_stop_process(multivisor_instance):
     multivisor_instance.refresh()  # processes are empty before calling this
     uid = "test001:PLC:wcid00d"
@@ -156,7 +168,7 @@ def test_stop_process(multivisor_instance):
         process = multivisor_instance.get_process(uid)
         sleep(0.5)
         if index == max_retries:
-            raise AssertionError("Process {} is not running".format(uid))
+            raise AssertionError(f"Process {uid} is not running")
         index += 1
 
     multivisor_instance.stop_processes(uid)
