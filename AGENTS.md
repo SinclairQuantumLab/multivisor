@@ -2,7 +2,7 @@
 
 This file is the operational contract for both human contributors and coding
 agents. It applies to the entire repository. Keep it synchronized with the
-actual build, test, packaging, and branch workflow whenever those change.
+actual setup, test, and branch workflow whenever those change.
 
 ## Product and architecture
 
@@ -15,8 +15,8 @@ The main runtime paths are:
 - `multivisor/server/rpc.py`: optional Supervisor event-listener RPC bridge.
 - `multivisor/multivisor.py`: web-side model and ZeroRPC client.
 - `src/`: Vue frontend source.
-- `multivisor/server/dist/`: committed frontend build consumed by direct Git
-  installs and by release wheels. Do not hand-edit generated files here.
+- `multivisor/server/dist/`: committed frontend build used by source checkouts
+  and Docker. Do not hand-edit generated files here.
 - `tests/` and `multivisor/**/tests/`: integration and unit tests.
 - `docker/`: Docker demo/runtime packaging.
 
@@ -28,13 +28,14 @@ the RPC component, not a general dependency of the web or CLI component.
 
 Use Git Flow naming and target rules:
 
-- `main`: released/stable history.
+- `main`: group-approved operational history; no package publication required.
 - `develop`: integration branch for the next release.
 - `feature/*`: user-visible capabilities; merge into `develop`.
 - `fix/*`: defect fixes; merge into `develop` unless it is a production hotfix.
 - `refactor/*`: structural, packaging, dependency, or tooling improvements;
   merge into `develop`.
-- `release/*`: release preparation; merge into `main` and back into `develop`.
+- `release/*`: operational release preparation; merge into `main` and back
+  into `develop`.
 - `hotfix/*`: urgent production fixes; merge into `main` and `develop`.
 - `upstream_develop`: local synchronization branch tracking
   `upstream/develop`; do not develop directly on it.
@@ -50,15 +51,15 @@ dirty worktree and never rewrite shared history without explicit authorization.
 - Free-threaded CPython (`3.14t`) is unsupported because gevent/greenlet do not
   support that execution mode.
 - `.python-version`, `requires-python`, classifiers, CI, Docker images, and the
-  runtime policy in `.agents/CHANGELOG.md` must agree.
+  runtime policy in `README.md` and `PACKAGING.md` must agree.
 
 Windows caveat: released `supervisor-win 4.7.0` constrains `pywin32` to
 `>228,<=306`, whose wheels stop at CPython 3.12. Keep a Windows Supervisor/RPC
 host on CPython 3.12; do not override that upstream dependency bound. The
 central web server and CLI can run on CPython 3.14 on the same or another
-machine. Both sides install the same Multivisor wheel because its Python floor
-is 3.12; only their selected extras and peer runtimes differ. See
-`.agents/CHANGELOG.md` for the exact topology, reasoning, and commands.
+machine. Both sides can use the same source revision with different extras
+and peer runtimes. See `PACKAGING.md` for current setup and
+`.agents/CHANGELOG.md` for the historical reasoning.
 
 Supported RPC peer runtimes are Supervisor 4.3.0 or newer on Unix and
 `supervisor-win 4.7.0` on Windows. Public extras do not install or upgrade this
@@ -131,19 +132,6 @@ git diff --check
 
 Then run the Python tests because the built UI is package data.
 
-### Release packaging
-
-Do not create wheels during ordinary `develop`, feature, fix, or refactor
-work. The top-level Python `dist/` directory is ignored and must remain free
-of local build artifacts. After a release merge reaches `main`, build and inspect the
-distribution in a disposable output directory before publishing:
-
-```console
-uv build --no-sources --out-dir .release-artifacts
-```
-
-Remove `.release-artifacts/` after inspection; it is never committed.
-
 ### Docker changes
 
 ```console
@@ -173,46 +161,42 @@ never reuse a user's production container name or port.
 - Keep public CLI flags, INI keys, REST paths, SSE payloads, and Vue behavior
   backward compatible unless a documented migration is intentional.
 
-## Packaging rules
+## Checkout and installation rules
 
-- Build, inspect, and publish wheels only from a release that has reached
-  `main`; do not generate persistent wheel artifacts for integration work.
-  Use a disposable output directory and delete it after release verification.
-- A release wheel must include `multivisor/server/dist/index.html`,
-  `favicon.ico`, and every referenced asset, and must exclude
-  `multivisor.tests` and `multivisor.server.tests`. Keep
-  `include-package-data = false` and declare runtime web assets explicitly so
-  setuptools-scm cannot reintroduce tracked test files as package data.
-- The project publishes one pure-Python distribution for 3.12+. Wheel tags and
-  `Requires-Python` select compatible files; environment markers select
-  platform dependencies. This is package metadata, not a GitHub repository
-  setting.
-- Wheels and direct Git installs expose `multivisor`, `multivisor-rpc`, and
-  `multivisor-cli`. Each command still requires its corresponding extra, and
-  both RPC adapters require an existing Supervisor peer runtime.
-- Docker builds use `uv sync --frozen` and the locked `docker` extra so the
-  Supervisor demo runtime is explicit and reproducible.
-- Never commit virtual environments, caches, logs, or local Supervisor state.
+- Operate a reviewed source checkout using editable `uv sync`; no routine
+  wheel/sdist build or publication is required on any branch, including main.
+- Keep `pyproject.toml`, the build backend, and console-script declarations:
+  they support editable installation and all three commands. Each command
+  requires its corresponding extra; RPC adapters need a Supervisor peer.
+- Retain explicit frontend package data and test-package exclusions. The
+  committed `multivisor/server/dist/` must contain index.html, favicon.ico,
+  and referenced assets. Do not hand-edit generated files.
+- Installer-generated intermediate wheels/caches are implementation details,
+  not managed release artifacts. Do not add artifact-deletion hooks.
+- Docker uses locked dependencies and a non-editable install because only its
+  environment is copied to the runtime image. Keep its explicit docker extra.
+- Use uv and npm as the maintained environment tools.
+- Keep operational checkouts separate from development and stop services before
+  changing their source or environments. See `PACKAGING.md`.
+- Never commit environments, distribution artifacts, caches, logs, credentials,
+  or local Supervisor state.
 
 ## Documentation and change ledger
 
-`.agents/README.md` defines the maintained documentation layout.
-`.agents/CHANGELOG.md` is the reproducible engineering ledger. For every
-material runtime, packaging, dependency, or workflow change:
+Follow `.agents/README.md`. Update current usage and operational documents
+when behavior changes. Routine maintenance needs a clear commit/PR description
+and relevant verification, not a separate changelog entry.
 
-1. Record the starting state and exact target.
-2. Explain why the change is necessary and list known constraints.
-3. List every changed file and the semantic effect.
-4. Include copy-pasteable migration and verification commands.
-5. Record actual results, failures encountered, and remaining limitations.
-6. State structural, functional, and visual impact explicitly.
-
-Do not mark a ledger entry complete until its documented checks have actually
-passed. If reality and documentation disagree, fix both in the same commit.
+The README initial-change summary records the fork's foundation; do not grow
+it with every fix. Preserve existing engineering history. Add migration notes
+only for operator action or significant architectural/runtime decisions, with
+the rationale, required steps, actual verification, and known limitations.
+Do not require exhaustive file inventories or failed-iteration diaries.
 
 ## Definition of done
 
 A change is complete only when the implementation, focused tests, full relevant
-test matrix, documentation, and clean `git status` agree. A release additionally
-requires its package build and inspection. Report known platform gaps rather
-than hiding them behind a broad support claim.
+test matrix, documentation, and clean tracked `git status` agree. Preserve
+unrelated user files. For documentation/workflow-only changes, check links,
+command validity, and the affected workflow; do not repeat runtime matrices
+unless the change affects them. Report known platform gaps honestly.

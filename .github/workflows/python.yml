@@ -44,10 +44,6 @@ jobs:
       - name: Run tests
         run: uv run --frozen pytest -q -rs
 
-      - name: Build distributions
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: uv build --no-sources
-
   rpc-integration:
     name: RPC / ${{ matrix.os }} / Python ${{ matrix.python-version }}
     runs-on: ${{ matrix.os }}

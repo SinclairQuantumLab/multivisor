@@ -1,140 +1,131 @@
-# Packaging
+# Checkout operations
 
-## Frontend
+This fork is operated from a source checkout with an editable uv environment.
+There is no wheel publication or distribution-artifact workflow, including on
+`main`. The filename is retained so existing documentation links keep working.
 
-Use Node.js 20.19 or newer and npm 10 or newer. The lockfile contains optional
-packages for every supported platform, so always use the clean-install command:
+## Environment and service startup
 
-```console
-npm ci
-npm audit
-npm run lint
-npm run build
-```
-
-The production frontend is written to `multivisor/server/dist`. These generated
-files are versioned deliberately: Python wheels and direct Git installs cannot
-assume that Node.js is available while the Python package is being built.
-
-After changing frontend source or dependencies, rebuild the frontend and commit
-the updated source, lockfile, and `multivisor/server/dist` together.
-
-## Python distributions
-
-### One distribution, several runtime roles
-
-Multivisor is pure Python and publishes one universal wheel with a Python 3.12
-floor; the tested CPython lanes are 3.12, 3.13, and 3.14. Do not create a separate
-"Python 3.12 RPC build" and "Python 3.14 web build": the same wheel is
-installed into both environments.
-
-| Environment | Python | Install | Supervisor relationship |
-| --- | --- | --- | --- |
-| Central web server | 3.14 recommended; 3.12–3.14 tested | `multivisor[web]` | None; calls remote RPC bridges |
-| Central CLI | 3.14 recommended; 3.12–3.14 tested | `multivisor[cli]` | None; calls the web REST API |
-| Unix RPC host | 3.12, 3.13, or 3.14 | `multivisor[rpc]` | Existing Supervisor 4.3.0+ peer in the same environment |
-| Windows RPC host | 3.12 | `multivisor[rpc]` | Existing `supervisor-win 4.7.0` peer in the same environment |
-
-The Windows RPC-host ceiling belongs to `supervisor-win 4.7.0`, which requires
-`pywin32<=306`; it is not a Multivisor wheel restriction. The public `rpc`
-extra therefore installs ZeroRPC but does not install or override Supervisor.
-
-All three console-script declarations are present in the wheel. An extra
-installs the dependencies needed by a role; it does not add or remove entry
-point metadata. In particular, `multivisor-rpc` and the in-process
-`multivisor.rpc` module still require the Supervisor peer runtime in which they
-operate.
-
-### How installers choose a compatible distribution
-
-Python compatibility is package metadata in `pyproject.toml`, not a GitHub
-repository setting:
-
-- `[project].requires-python = ">=3.12"` becomes `Requires-Python` in wheel and
-  source-distribution metadata. pip and uv reject a release when the active
-  interpreter does not satisfy it and, when resolving from an index, select
-  the newest compatible release.
-- Wheel compatibility tags select platform, implementation, and ABI-specific
-  artifacts. This project has no compiled extension, so its wheel is tagged
-  `py3-none-any`; `Requires-Python` supplies the 3.12 floor.
-- Environment markers on dependencies select platform/runtime-specific
-  requirements. The private `rpc-test` group, for example, selects Unix
-  `supervisor` on Unix and selects `supervisor-win` only on Windows below
-  Python 3.13.
-- Extras such as `web`, `cli`, and `rpc` select feature dependencies from the
-  same distribution. They do not select different Multivisor source trees.
-
-Installing from PyPI lets the resolver choose among published releases:
+From the selected checkout:
 
 ```console
-uv tool install --python 3.14 "multivisor[web]"
-uv pip install "multivisor[rpc]"
+uv sync --locked --extra web --no-dev
+uv run --no-sync multivisor --bind 127.0.0.1:22000 -c /absolute/path/to/multivisor.conf
 ```
 
-A direct Git reference selects the named commit, tag, or branch first and then
-builds that checkout using its `pyproject.toml` metadata:
+`--locked` rejects an out-of-date lockfile; it does not upgrade dependencies.
+`--no-sync` runs the prepared environment without modifying it at startup.
+Include all roles you need when synchronizing, for example `--extra web
+--extra cli`. An exact `uv sync` can remove packages outside the selected
+dependency set.
+
+Service managers should invoke the prepared executable directly:
+
+- Windows: `C:\path\to\multivisor\.venv\Scripts\multivisor.exe`
+- Unix: `/path/to/multivisor/.venv/bin/multivisor`
+
+Use absolute paths for the executable and config, and the checkout as the
+working directory. Keep operational checkouts separate from development
+checkouts; an editable environment continues to read from its source directory.
+
+## Supervisor and RPC hosts
+
+The web server and CLI communicate with peers; they do not start Supervisor.
+Each managed host needs either the in-process `multivisor.rpc` interface or
+the `multivisor-rpc` event-listener bridge in its Supervisor environment.
+
+| Role | Python | Dependencies |
+| --- | --- | --- |
+| Central web / CLI | 3.14 recommended; 3.12–3.14 supported | `web` / `cli` extras |
+| Unix Supervisor/RPC host | 3.12–3.14 | Supervisor 4.3.0+ and `rpc` extra |
+| Windows Supervisor/RPC host | 3.12 | supervisor-win 4.7.0 and `rpc` extra |
+
+The Windows limit follows supervisor-win's pywin32 constraint. Public extras
+do not install, upgrade, or override Supervisor.
+
+For an existing Supervisor environment, install this checkout using that
+environment's Python. Replace the interpreter path with the actual one:
 
 ```console
-uv pip install "multivisor[web] @ git+https://github.com/SinclairQuantumLab/multivisor.git@develop"
+uv pip install --python /path/to/supervisor-environment/python -e ".[rpc]"
 ```
 
-There is no fallback to another Git commit when that checkout is incompatible
-with the active Python. GitHub Actions or release settings can automate builds
-and uploads, but installer selection is controlled by the distribution
-metadata and package index.
+This additive installation preserves the host's peer runtime. It resolves the
+RPC dependencies from project metadata, not `uv.lock`; retain that host's own
+dependency management. Do not apply an exact project sync to an independently
+managed Supervisor environment. For a disposable locked demo/RPC test host,
+use the project's `rpc-test` group as described in README and AGENTS.
 
-### Locked development and release builds
+Choose one adapter. For the in-process interface, add to `supervisord.conf`:
 
-Python development uses the committed `uv.lock`. Create or update the central
-web/CLI environment with the named `all` extra and default development group:
+```ini
+[rpcinterface:multivisor]
+supervisor.rpcinterface_factory = multivisor.rpc:make_rpc_interface
+bind=127.0.0.1:9002
+```
+
+Alternatively, configure an event listener (use its environment's absolute
+executable path):
+
+```ini
+[eventlistener:multivisor-rpc]
+command=/path/to/supervisor-environment/bin/multivisor-rpc --bind 127.0.0.1:9002
+events=PROCESS_STATE,SUPERVISOR_STATE_CHANGE
+```
+
+On Windows use a quoted executable path with forward slashes for Supervisor's
+command parser. Restart/reconfigure the Supervisor host as appropriate for the
+chosen adapter. For remote access, bind to the host's private interface and
+allow only the central server to reach the RPC port.
+
+## Authentication and reverse proxies
+
+To enable the built-in web login, add `username` and `password` under
+`[global]` and set `MULTIVISOR_SECRET_KEY` in the service environment.
+Generate a secret with:
 
 ```console
-uv sync --frozen --extra all
-uv run pytest
+uv run --no-sync python -c "import secrets; print(secrets.token_hex(32))"
 ```
 
-Add the private RPC integration group only where a supported Supervisor test
-runtime is required:
+Keep the secret stable across restarts and protect the config containing the
+credentials. Use HTTPS at the reverse proxy for remote web access.
 
-```console
-# Unix on Python 3.12, 3.13, or 3.14; Windows on Python 3.12 only
-uv sync --frozen --extra all --group rpc-test
-uv run pytest
-```
+The live-update endpoint `/api/stream` sends an immediate SSE comment and a
+heartbeat after 15 seconds without an event. It sends `Cache-Control:
+no-cache` and `X-Accel-Buffering: no`. Configure the proxy for streaming and an
+idle timeout longer than the heartbeat interval; these headers cannot override
+every proxy policy.
 
-CI keeps these concerns separate: core web/CLI tests run on Windows and Ubuntu
-for Python 3.12, 3.13, and 3.14; RPC integration runs on Unix for all three and
-on Windows for 3.12. Separate Windows tests connect Python 3.13 and 3.14 central
-environments to a Python 3.12 RPC-host environment.
+## Updates and rollback
 
-When dependencies change, run `uv lock` and commit `pyproject.toml` and
-`uv.lock` together. CI should run `uv lock --check` (or use `--locked`) to reject
-a stale lockfile; `--frozen` prevents writes but deliberately skips that
-freshness check.
+1. Record `git rev-parse HEAD` and stop the service.
+2. Fetch updates and select a reviewed commit or tag. On an operational branch
+   that tracks its remote, `git pull --ff-only` accepts only a fast-forward.
+3. Run `uv sync --locked --extra web --no-dev` (with any other required extras).
+4. Restart and verify the web route and connections to the managed hosts.
 
-Development and integration branches install directly from the checkout (or
-from a Git reference); they do not create wheel artifacts. The ignored
-top-level Python `dist/` directory must not be used as a handoff location for
-local builds.
+For rollback, stop the service, check out the previously recorded commit in a
+clean operational checkout, synchronize its lockfile with the same extras,
+then restart. Keep configuration backups separately. Never switch branches or
+rewrite source under a running operational process.
 
-After a release merge reaches `main`, build the source distribution and wheel
-after the frontend has been rebuilt. Use a disposable output directory:
+## Build machinery retained for installation
 
-```console
-uv lock --check
-uv build --no-sources --out-dir .release-artifacts
-```
+`pyproject.toml`, setuptools, and the console-script declarations support
+editable installation. Installer caches may contain intermediate wheels;
+maintainers do not distribute or curate them.
 
-Inspect or install the wheel in a clean environment before publishing it. The
-wheel must contain `multivisor/server/dist/index.html`, `favicon.ico`, and all
-referenced assets. It must not contain the repository's test packages;
-`include-package-data = false` and the explicit `multivisor.server` package-data
-list keep the wheel limited to runtime Python modules and generated web assets.
-Delete `.release-artifacts/` after inspection; it is intentionally ignored and
-must never be committed.
+The web server reads `multivisor/server/dist/`. This committed frontend output
+is runtime input, so it is retained even without Python distribution releases.
+Frontend contributors rebuild it with `npm ci`, `npm run lint`, and
+`npm run build`.
 
-To publish a verified release from `main`:
+The optional Docker image uses a non-editable install because its final stage
+copies the virtual environment without the source checkout. This remains an
+internal image-build step and needs no separately managed wheel.
 
-```console
-uv publish
-```
+uv and npm are the maintained environment tools; the inherited Pixi setup has
+been removed. See [AGENTS.md](AGENTS.md) for contributor checks and
+[the historical engineering record](.agents/CHANGELOG.md) for the initial
+migration rationale.

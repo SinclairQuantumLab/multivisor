@@ -45,7 +45,6 @@ __pycache__/
 build/
 develop-eggs/
 dist/
-/.release-artifacts/
 downloads/
 eggs/
 .eggs/
@@ -61,13 +60,9 @@ share/python-wheels/
 *.egg
 MANIFEST
 
-# The prebuilt web UI is versioned so wheels and direct Git installs include it.
+# The prebuilt web UI is runtime input for source checkouts and Docker.
 !multivisor/server/dist/
 !multivisor/server/dist/**
-
-# Pixi environments
-.pixi/*
-!.pixi/config.toml
 
 # Windows demo launcher runtime state/configuration.
 demo/.multivisor-demo-launcher.json
