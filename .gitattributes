@@ -4,3 +4,8 @@ index.html text eol=lf
 
 # SCM syntax highlighting & preventing 3-way merges
 pixi.lock merge=binary linguist-language=YAML linguist-generated=true -diff
+
+docker/bin/* text eol=lf
+demo/demo text eol=lf
+demo/exits text eol=lf
+demo/talkative text eol=lf

@@ -1,6 +1,7 @@
 .DS_Store
 node_modules
-/dist
+.venv/
+.venv-rpc/
 
 # local env files
 .env.local
@@ -16,10 +17,13 @@ pnpm-debug.log*
 supervisord.log*
 supervisord.pid*
 tests/log
+.pytest_cache/
+.coverage*
+htmlcov/
 
-# Example files
-examples/full_example/log
-examples/full_example/*.pid
+# Demo runtime artifacts
+demo/log/
+demo/*.pid
 
 # Editor directories and files
 .vscode/*
@@ -63,3 +67,7 @@ MANIFEST
 # Pixi environments
 .pixi/*
 !.pixi/config.toml
+
+# Windows demo launcher runtime state/configuration.
+demo/.multivisor-demo-launcher.json
+demo/*.windows.runtime.conf
