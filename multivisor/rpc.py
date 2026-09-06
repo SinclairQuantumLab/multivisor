@@ -22,12 +22,8 @@ from zerorpc import stream, Server, LostRemote, Context
 from supervisor.http import NOT_DONE_YET
 from supervisor.rpcinterface import SupervisorNamespaceRPCInterface
 from supervisor.events import subscribe, Event, getEventNameByType
-
-# unsubscribe only appears in supervisor > 3.3.4
-try:
-    from supervisor.events import unsubscribe
-except:
-    unsubscribe = lambda x, y: None
+from supervisor.events import unsubscribe
+from supervisor.options import ServerOptions
 
 from .util import sanitize_url, parse_obj
 
@@ -38,7 +34,7 @@ def sync(klass):
     def wrap_func(meth):
         @functools.wraps(meth)
         def wrapper(*args, **kwargs):
-            args[0]._log.debug("0RPC: called {}".format(meth.__name__))
+            args[0]._log.debug(f"0RPC: called {meth.__name__}")
             result = meth(*args, **kwargs)
             if callable(result):
                 r = NOT_DONE_YET
@@ -66,15 +62,13 @@ def sync(klass):
 # prevents supervisor from closing the gevent pipes and 0MQ sockets
 # This is a really agressive move but seems to work until the above
 # bug is solved
-from supervisor.options import ServerOptions
-
 ServerOptions.cleanup_fds = lambda options: None
 
 
 @sync
 class MultivisorNamespaceRPCInterface(SupervisorNamespaceRPCInterface):
     def __init__(self, supervisord, bind):
-        SupervisorNamespaceRPCInterface.__init__(self, supervisord)
+        super().__init__(supervisord)
         self._bind = bind
         self._channel = queue.Queue()
         self._event_channels = set()
@@ -113,17 +107,17 @@ class MultivisorNamespaceRPCInterface(SupervisorNamespaceRPCInterface):
         except AttributeError:
             # old supervisor version
             payload_str = str(event)
-        payload = dict((x.split(":") for x in payload_str.split()))
+        payload = dict(x.split(":") for x in payload_str.split())
         if event_name.startswith("PROCESS_STATE"):
             pname = "{}:{}".format(payload["groupname"], payload["processname"])
-            payload[u"process"] = parse_obj(self.getProcessInfo(pname))
+            payload["process"] = parse_obj(self.getProcessInfo(pname))
         # broadcast the event to clients
         server = self.supervisord.options.identifier
         new_event = {
-            u"pool": u"multivisor",
-            u"server": str(server),
-            u"eventname": str(event_name),
-            u"payload": payload,
+            "pool": "multivisor",
+            "server": str(server),
+            "eventname": str(event_name),
+            "payload": payload,
         }
         for channel in self._event_channels:
             channel.put(new_event)
@@ -169,13 +163,13 @@ class MultivisorNamespaceRPCInterface(SupervisorNamespaceRPCInterface):
                     return
                 # self._log.info(event)
                 yield event
-        except LostRemote as e:
+        except LostRemote:
             self._log.info("remote end of stream disconnected")
         finally:
             self._event_channels.remove(channel)
 
 
-class ServerMiddleware(object):
+class ServerMiddleware:
     def server_after_exec(self, request_event, reply_event):
         if reply_event.args:
             reply_event._args = parse_obj(reply_event.args)
@@ -184,15 +178,17 @@ class ServerMiddleware(object):
 def start_rpc_server(multivisor, bind):
     future_server = queue.Queue(1)
     th = threading.Thread(
-        target=run_rpc_server, name="RPCServer", args=(multivisor, bind, future_server)
+        target=run_rpc_server,
+        name="RPCServer",
+        args=(multivisor, bind, future_server),
+        daemon=True,
     )
-    th.daemon = True
     th.start()
     return future_server.get()
 
 
 def run_rpc_server(multivisor, bind, future_server):
-    multivisor._log.info("0RPC: spawn server on {}...".format(os.getpid()))
+    multivisor._log.info(f"0RPC: spawn server on {os.getpid()}...")
     watcher = hub.get_hub().loop.async_()
     stop_event = threading.Event()
     watcher.start(lambda: spawn(multivisor._dispatch_event))

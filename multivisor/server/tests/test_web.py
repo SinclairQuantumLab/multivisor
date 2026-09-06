@@ -1,12 +1,14 @@
+from time import sleep
+
+import pytest
 import requests
 
 from tests.functions import assert_fields_in_object
-from tests.conftest import *
 
 
 @pytest.mark.usefixtures("api_base_url")
 def test_data_view(api_base_url):
-    url = "{}/data".format(api_base_url)
+    url = f"{api_base_url}/data"
     response = requests.get(url)
     assert response.status_code == 200
     data = response.json()
@@ -50,7 +52,7 @@ def test_data_view(api_base_url):
 
 @pytest.mark.usefixtures("api_base_url")
 def test_config_view(api_base_url):
-    url = "{}/config/file".format(api_base_url)
+    url = f"{api_base_url}/config/file"
     response = requests.get(url)
     assert response.status_code == 200
     data = response.json()
@@ -58,8 +60,22 @@ def test_config_view(api_base_url):
 
 
 @pytest.mark.usefixtures("api_base_url")
+def test_stream_sends_immediate_heartbeat(api_base_url):
+    url = f"{api_base_url}/stream"
+    with requests.get(url, stream=True, timeout=(2, 2)) as response:
+        assert response.status_code == 200
+        assert response.headers["content-type"].startswith("text/event-stream")
+        assert response.headers["cache-control"] == "no-cache"
+        assert response.headers["x-accel-buffering"] == "no"
+
+        lines = response.iter_lines(chunk_size=1)
+        assert next(lines) == b": keepalive"
+        assert next(lines) == b""
+
+
+@pytest.mark.usefixtures("api_base_url")
 def test_list_processes_view(api_base_url):
-    url = "{}/process/list".format(api_base_url)
+    url = f"{api_base_url}/process/list"
     response = requests.get(url)
     assert response.status_code == 200
     data = response.json()
@@ -70,30 +86,30 @@ def test_list_processes_view(api_base_url):
 @pytest.mark.usefixtures("api_base_url")
 def test_process_info_view(api_base_url):
     uid = "test001:PLC:wcid00d"
-    url = "{}/process/info/{}".format(api_base_url, uid)
+    url = f"{api_base_url}/process/info/{uid}"
     response = requests.get(url)
     assert response.status_code == 200
     process_data = response.json()
     keys = [
-        u"logfile",
-        u"statename",
-        u"group",
-        u"description",
-        u"pid",
-        u"stderr_logfile",
-        u"stop",
-        u"running",
-        u"name",
-        u"start",
-        u"state",
-        u"spawnerr",
-        u"full_name",
-        u"host",
-        u"supervisor",
-        u"now",
-        u"exitstatus",
-        u"stdout_logfile",
-        u"uid",
+        "logfile",
+        "statename",
+        "group",
+        "description",
+        "pid",
+        "stderr_logfile",
+        "stop",
+        "running",
+        "name",
+        "start",
+        "state",
+        "spawnerr",
+        "full_name",
+        "host",
+        "supervisor",
+        "now",
+        "exitstatus",
+        "stdout_logfile",
+        "uid",
     ]
 
     assert_fields_in_object(keys, process_data)
@@ -106,21 +122,21 @@ def test_process_info_view(api_base_url):
 @pytest.mark.usefixtures("api_base_url")
 def test_supervisor_info_view(api_base_url):
     uid = "test001"
-    url = "{}/supervisor/info/{}".format(api_base_url, uid)
+    url = f"{api_base_url}/supervisor/info/{uid}"
     response = requests.get(url)
     assert response.status_code == 200
     supervisor_data = response.json()
     keys = [
-        u"processes",
-        u"name",
-        u"url",
-        u"pid",
-        u"running",
-        u"host",
-        u"version",
-        u"identification",
-        u"supervisor_version",
-        u"api_version",
+        "processes",
+        "name",
+        "url",
+        "pid",
+        "running",
+        "host",
+        "version",
+        "identification",
+        "supervisor_version",
+        "api_version",
     ]
 
     assert_fields_in_object(keys, supervisor_data)
@@ -130,14 +146,14 @@ def test_supervisor_info_view(api_base_url):
 
 @pytest.mark.usefixtures("api_base_url")
 def test_reload_view(api_base_url):
-    url = "{}/admin/reload".format(api_base_url)
+    url = f"{api_base_url}/admin/reload"
     response = requests.get(url)
     assert response.status_code == 200
 
 
 @pytest.mark.usefixtures("api_base_url")
 def test_refresh_view(api_base_url):
-    url = "{}/refresh".format(api_base_url)
+    url = f"{api_base_url}/refresh"
     response = requests.get(url)
     assert response.status_code == 200
 
@@ -154,11 +170,11 @@ def test_stop_process_view(api_base_url, multivisor_instance):
         process = multivisor_instance.get_process(uid)
         sleep(0.5)
         if index == max_retries:
-            raise AssertionError("Process {} is not running".format(uid))
+            raise AssertionError(f"Process {uid} is not running")
         index += 1
 
     # stop the process
-    url = "{}/process/stop".format(api_base_url)
+    url = f"{api_base_url}/process/stop"
     response = requests.post(url, {"uid": uid})
     assert response.status_code == 200
 
@@ -169,7 +185,7 @@ def test_stop_process_view(api_base_url, multivisor_instance):
         process = multivisor_instance.get_process(uid)
         sleep(0.5)
         if index == max_retries:
-            raise AssertionError("Process {} is not stopped".format(uid))
+            raise AssertionError(f"Process {uid} is not stopped")
         index += 1
 
 
@@ -184,7 +200,7 @@ def test_restart_process_view(api_base_url, multivisor_instance):
         assert not process["running"]
 
     # restart the process
-    url = "{}/process/restart".format(api_base_url)
+    url = f"{api_base_url}/process/restart"
     response = requests.post(url, {"uid": uid})
     assert response.status_code == 200
 

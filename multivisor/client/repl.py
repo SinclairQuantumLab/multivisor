@@ -43,17 +43,15 @@ def process_description(process):
         )
     else:
         stop = maya.MayaDT(process["stop"])
-        desc = "stopped on {stop} ({delta} ago)".format(
-            stop=stop.rfc2822(), delta=stop.slang_time()
-        )
+        desc = f"stopped on {stop.rfc2822()} ({stop.slang_time()} ago)"
     return desc
 
 
 def process_status(process, max_puid_len=10, group_by="group"):
     state = process["statename"]
-    uid = u"{{uid:{}}}".format(max_puid_len).format(uid=process["uid"])
+    uid = f"{{uid:{max_puid_len}}}".format(uid=process["uid"])
     desc = process_description(process)
-    text = u"{p}{uid} <{lstate}>{state:8}</{lstate}> {description}".format(
+    text = "{p}{uid} <{lstate}>{state:8}</{lstate}> {description}".format(
         p=("" if group_by in (None, "process") else "  "),
         uid=uid,
         state=state,
@@ -64,7 +62,9 @@ def process_status(process, max_puid_len=10, group_by="group"):
 
 
 def processes_status(status, group_by="group", filter="*"):
-    filt = lambda p: fnmatch.fnmatch(p["uid"], filter)
+    def filt(process):
+        return fnmatch.fnmatch(process["uid"], filter)
+
     return util.processes_status(
         status, group_by=group_by, process_filter=filt, process_status=process_status
     )
@@ -86,7 +86,7 @@ def cmd(f=None, name=None):
     return f
 
 
-class Commands(object):
+class Commands:
     def __init__(self, multivisor):
         self.multivisor = multivisor
 
@@ -152,18 +152,18 @@ class Commands(object):
     def get_command(self, name):
         method_name = self.get_commands().get(name)
         if method_name is None:
-            raise ValidationError(message="Unknown command '{}'".format(name))
+            raise ValidationError(message=f"Unknown command '{name}'")
         return getattr(self, method_name)
 
 
 def Prompt(**kwargs):
     history = InMemoryHistory()
     auto_suggest = AutoSuggestFromHistory()
-    prmpt = u"multivisor> "
+    prmpt = "multivisor> "
     return PromptSession(prmpt, history=history, auto_suggest=auto_suggest, **kwargs)
 
 
-class Repl(object):
+class Repl:
 
     keys = KeyBindings()
 
@@ -192,13 +192,13 @@ class Repl(object):
         else:
             notif = dict(level="INFO", message="Welcome to multivisor CLI")
         html = (
-            u"{name} | Supervisors: {s[total]} ("
-            u'<b><style bg="green">{s[running]}</style></b>/'
-            u'<b><style bg="red">{s[stopped]}</style></b>) '
-            u"| Processes: {p[total]} ("
-            u'<b><style bg="green">{p[running]}</style></b>/'
-            u'<b><style bg="red">{p[stopped]}</style></b>) '
-            u'| <style bg="{notif_color}">{notif_msg}</style>'.format(
+            "{name} | Supervisors: {s[total]} ("
+            '<b><style bg="green">{s[running]}</style></b>/'
+            '<b><style bg="red">{s[stopped]}</style></b>) '
+            "| Processes: {p[total]} ("
+            '<b><style bg="green">{p[running]}</style></b>/'
+            '<b><style bg="red">{p[stopped]}</style></b>) '
+            '| <style bg="{notif_color}">{notif_msg}</style>'.format(
                 name=status["name"],
                 s=s_stats,
                 p=p_stats,
@@ -209,7 +209,7 @@ class Repl(object):
         self.__toolbar = HTML(html)
         self.session.app.invalidate()
 
-    @keys.add(u"f5")
+    @keys.add("f5")
     def __on_refresh(self):
         run_in_terminal(self.app.commands.refresh_status())
 
@@ -225,7 +225,7 @@ class Repl(object):
         except KeyboardInterrupt:
             raise
         except Exception as err:
-            print_formatted_text(HTML(u"<red>Error:</red> {}".format(err)))
+            print_formatted_text(HTML(f"<red>Error:</red> {err}"))
 
     def toolbar(self):
         return self.__toolbar

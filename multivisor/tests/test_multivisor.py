@@ -1,8 +1,9 @@
+import contextlib
+from time import sleep
+
 import pytest
 
-from tests.conftest import *
 from tests.functions import assert_fields_in_object
-import contextlib
 
 
 @pytest.mark.usefixtures("supervisor_test001")
@@ -167,7 +168,7 @@ def test_stop_process(multivisor_instance):
         process = multivisor_instance.get_process(uid)
         sleep(0.5)
         if index == max_retries:
-            raise AssertionError("Process {} is not running".format(uid))
+            raise AssertionError(f"Process {uid} is not running")
         index += 1
 
     multivisor_instance.stop_processes(uid)
