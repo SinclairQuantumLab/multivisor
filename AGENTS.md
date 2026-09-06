@@ -15,8 +15,8 @@ The main runtime paths are:
 - `multivisor/server/rpc.py`: optional Supervisor event-listener RPC bridge.
 - `multivisor/multivisor.py`: web-side model and ZeroRPC client.
 - `src/`: Vue frontend source.
-- `multivisor/server/dist/`: committed frontend build consumed by wheels and
-  direct Git installs. Do not hand-edit generated files here.
+- `multivisor/server/dist/`: committed frontend build consumed by direct Git
+  installs and by release wheels. Do not hand-edit generated files here.
 - `tests/` and `multivisor/**/tests/`: integration and unit tests.
 - `docker/`: Docker demo/runtime packaging.
 
@@ -99,7 +99,6 @@ the final diff.
 uv lock --check
 uv run --frozen ruff check .
 uv run --frozen pytest -q
-uv build --no-sources
 ```
 
 For runtime-version work, test the central web/CLI package on every supported
@@ -132,6 +131,19 @@ git diff --check
 
 Then run the Python tests because the built UI is package data.
 
+### Release packaging
+
+Do not create wheels during ordinary `develop`, feature, fix, or refactor
+work. The top-level Python `dist/` directory is ignored and must remain free
+of local build artifacts. After a release merge reaches `main`, build and inspect the
+distribution in a disposable output directory before publishing:
+
+```console
+uv build --no-sources --out-dir .release-artifacts
+```
+
+Remove `.release-artifacts/` after inspection; it is never committed.
+
 ### Docker changes
 
 ```console
@@ -163,11 +175,12 @@ never reuse a user's production container name or port.
 
 ## Packaging rules
 
-- `uv build --no-sources` must succeed; this proves the package does not depend
-  on uv-only source substitutions.
-- Wheels must include `multivisor/server/dist/index.html`, `favicon.ico`, and
-  every referenced asset.
-- Wheels must exclude `multivisor.tests` and `multivisor.server.tests`. Keep
+- Build, inspect, and publish wheels only from a release that has reached
+  `main`; do not generate persistent wheel artifacts for integration work.
+  Use a disposable output directory and delete it after release verification.
+- A release wheel must include `multivisor/server/dist/index.html`,
+  `favicon.ico`, and every referenced asset, and must exclude
+  `multivisor.tests` and `multivisor.server.tests`. Keep
   `include-package-data = false` and declare runtime web assets explicitly so
   setuptools-scm cannot reintroduce tracked test files as package data.
 - The project publishes one pure-Python distribution for 3.12+. Wheel tags and
@@ -200,5 +213,6 @@ passed. If reality and documentation disagree, fix both in the same commit.
 ## Definition of done
 
 A change is complete only when the implementation, focused tests, full relevant
-test matrix, package build, documentation, and clean `git status` agree. Report
-known platform gaps rather than hiding them behind a broad support claim.
+test matrix, documentation, and clean `git status` agree. A release additionally
+requires its package build and inspection. Report known platform gaps rather
+than hiding them behind a broad support claim.

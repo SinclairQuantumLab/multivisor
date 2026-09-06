@@ -45,6 +45,7 @@ jobs:
         run: uv run --frozen pytest -q -rs
 
       - name: Build distributions
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: uv build --no-sources
 
   rpc-integration:

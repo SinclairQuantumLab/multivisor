@@ -3,6 +3,103 @@
 Entries are newest first. This is a reproducible migration record, not a list of
 commit subjects.
 
+## 2026-09-06 — Upstream RC3 integration and release-only artifacts
+
+- Status: **local validation complete on `refactor/upstream-rc3-sync`; GitHub
+  CI remains pending**
+- Starting integration point: fork `develop` at `6de4648`
+- Upstream reference: `upstream/develop` at `f345835` (`v7.0.0rc3`)
+- Additional integrated branches: `feature/full-example-launcher` at
+  `34088f4` and `fix/sse-heartbeat` at `97484ea`
+
+### Objective and scope
+
+Integrate the upstream Vue/Vuetify RC3 frontend work with this fork's Python
+3.12–3.14 modernization, Windows demo workflow, and reverse-proxy SSE
+heartbeat. Keep the fork's newer Node/Vite dependency baseline and its locked
+uv environment rather than reverting to the older upstream JavaScript or Python
+tooling.
+
+This integration also establishes a release-artifact boundary: normal
+`develop`, feature, fix, and refactor work must not create or publish wheels.
+Direct checkout and Git-reference installs remain the development workflow.
+Only a release that has reached `main` may build a wheel/sdist, inspect it, and
+publish it. Generated frontend assets in `multivisor/server/dist/` remain
+versioned package input; they are distinct from the ignored Python `dist/`
+release-artifact directory.
+
+### Reconciliation decisions
+
+1. Preserve upstream RC3 Vue source changes, including the revised process,
+   group, supervisor-card, tile, toolbar, and about-page UI.
+2. Preserve the fork's modern `package.json` and `package-lock.json` because
+   they carry the maintained Vue/Vite dependency set. Rebuild the committed
+   frontend output from that lockfile after every source merge.
+3. Normalize the generated HTML EOL in `vite.config.mjs`; Windows checkouts
+   must not emit a CRCRLF sequence in `multivisor/server/dist/index.html`.
+4. Preserve the Python runtime split, uv lockfile, RPC protocol decoupling, and
+   flattened `demo/` launcher from the Python-modernization branch.
+5. Replace the old SSE route generator with `iter_sse_events`: it sends an
+   immediate and periodic comment heartbeat, removes listeners in `finally`,
+   and sets `Cache-Control: no-cache` plus `X-Accel-Buffering: no`.
+6. Limit GitHub distribution builds to push events on `main`; the job does not
+   publish an artifact. Publishing remains an explicit release action.
+
+### Files and operational effects
+
+- `src/`, `multivisor/server/dist/`, `vite.config.mjs`, `.gitattributes`, and
+  `.gitignore`: upstream UI integration, reproducible generated assets, and
+  safe line-ending handling.
+- `pyproject.toml`, `uv.lock`, `.python-version`, Docker, CI, and runtime
+  modules: retained Python 3.12–3.14 compatibility policy documented below.
+- `demo/`: retained Windows launcher and the renamed manual demo topology.
+- `multivisor/server/web.py`, `multivisor/server/tests/test_sse.py`, and
+  `README.md`: SSE heartbeats and proxy-facing response headers with focused
+  coverage and deployment notes.
+- `AGENTS.md`, `PACKAGING.md`, `.github/workflows/python.yml`, and
+  `.gitignore`: release-only wheel policy. The temporary
+  `.release-artifacts/` directory is ignored.
+
+### Verification plan
+
+Run from this integration branch without adding the local icon source assets:
+
+```console
+uv lock --check
+uv run --isolated --python 3.12 --extra all --frozen ruff check .
+uv run --isolated --python 3.12 --extra all --frozen pytest -q
+uv run --isolated --python 3.13 --extra all --frozen ruff check .
+uv run --isolated --python 3.13 --extra all --frozen pytest -q
+uv run --isolated --python 3.14 --extra all --frozen ruff check .
+uv run --isolated --python 3.14 --extra all --frozen pytest -q
+npm ci
+npm run lint
+npm run build
+git diff --check
+```
+
+Run the Windows Python 3.12 RPC group and the `demo/run.ps1` topology check
+before merging to `develop`. On a release after it reaches `main`, additionally
+run `uv build --no-sources --out-dir .release-artifacts`, inspect the wheel,
+publish deliberately, and remove `.release-artifacts/`.
+
+### Actual local verification
+
+| Check | Result |
+| --- | --- |
+| `uv lock --check` | Passed; 47 packages resolved |
+| Core ruff, CPython 3.12 / 3.13 / 3.14 | Passed on every lane |
+| Core pytest, CPython 3.12 / 3.13 / 3.14 | Each: 5 passed, 22 expected RPC-peer skips |
+| Windows CPython 3.12 RPC integration | 27 passed with a real `supervisor-win` host, web server, and event-listener adapter |
+| `npm ci`, `npm run lint`, `npm run build` | Passed; generated `dist/index.html` has no CRCRLF and references the packaged favicon |
+| Windows `demo/run.ps1 -WebPort 22002` | HTTP 200; 3/3 Supervisors online; 23 processes; `-Stop` removed only launcher-owned process trees |
+| `git diff --check` | Passed |
+
+`npm ci` reported one moderate advisory in the lockfile's dependency tree. It
+was not automatically updated because `npm audit fix` could make unrelated
+dependency changes; handle it in a dedicated dependency-maintenance branch.
+No Python wheel or sdist was generated during this integration validation.
+
 ## 2026-08-21 — Python 3.14 runtime modernization
 
 - Status: **implementation and local Windows/Linux validation complete on

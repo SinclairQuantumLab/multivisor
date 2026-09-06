@@ -112,11 +112,17 @@ When dependencies change, run `uv lock` and commit `pyproject.toml` and
 a stale lockfile; `--frozen` prevents writes but deliberately skips that
 freshness check.
 
-Build the source distribution and wheel after the frontend has been rebuilt:
+Development and integration branches install directly from the checkout (or
+from a Git reference); they do not create wheel artifacts. The ignored
+top-level Python `dist/` directory must not be used as a handoff location for
+local builds.
+
+After a release merge reaches `main`, build the source distribution and wheel
+after the frontend has been rebuilt. Use a disposable output directory:
 
 ```console
 uv lock --check
-uv build --no-sources
+uv build --no-sources --out-dir .release-artifacts
 ```
 
 Inspect or install the wheel in a clean environment before publishing it. The
@@ -124,8 +130,10 @@ wheel must contain `multivisor/server/dist/index.html`, `favicon.ico`, and all
 referenced assets. It must not contain the repository's test packages;
 `include-package-data = false` and the explicit `multivisor.server` package-data
 list keep the wheel limited to runtime Python modules and generated web assets.
+Delete `.release-artifacts/` after inspection; it is intentionally ignored and
+must never be committed.
 
-To publish a verified release:
+To publish a verified release from `main`:
 
 ```console
 uv publish

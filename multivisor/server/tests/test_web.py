@@ -61,7 +61,7 @@ def test_config_view(api_base_url):
 
 @pytest.mark.usefixtures("api_base_url")
 def test_stream_sends_immediate_heartbeat(api_base_url):
-    url = "{}/stream".format(api_base_url)
+    url = f"{api_base_url}/stream"
     with requests.get(url, stream=True, timeout=(2, 2)) as response:
         assert response.status_code == 200
         assert response.headers["content-type"].startswith("text/event-stream")
