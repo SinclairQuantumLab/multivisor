@@ -53,13 +53,16 @@ dirty worktree and never rewrite shared history without explicit authorization.
 - `.python-version`, `requires-python`, classifiers, CI, Docker images, and the
   runtime policy in `README.md` and `PACKAGING.md` must agree.
 
-Windows caveat: released `supervisor-win 4.7.0` constrains `pywin32` to
-`>228,<=306`, whose wheels stop at CPython 3.12. Keep a Windows Supervisor/RPC
-host on CPython 3.12; do not override that upstream dependency bound. The
-central web server and CLI can run on CPython 3.14 on the same or another
-machine. Both sides can use the same source revision with different extras
-and peer runtimes. See `PACKAGING.md` for current setup and
-`.agents/CHANGELOG.md` for the historical reasoning.
+Windows caveat: the Multivisor RPC package and adapter code support CPython
+3.12–3.14. Released `supervisor-win 4.7.0`, however, constrains `pywin32` to
+`>228,<=306`, whose wheels stop at CPython 3.12. Its own Supervisor-host
+environment must therefore select CPython 3.12 today; do not override that
+upstream dependency bound. This is a peer-runtime execution limit, not a
+Multivisor `rpc` extra or package-metadata limit. The central web server and
+CLI can run on CPython 3.14 on the same or another machine. When supervisor-win
+supports a newer interpreter, add and pass the corresponding Windows RPC
+integration lane before documenting it as runnable. See `PACKAGING.md` for
+current setup and `.agents/CHANGELOG.md` for the historical reasoning.
 
 Supported RPC peer runtimes are Supervisor 4.3.0 or newer on Unix and
 `supervisor-win 4.7.0` on Windows. Public extras do not install or upgrade this

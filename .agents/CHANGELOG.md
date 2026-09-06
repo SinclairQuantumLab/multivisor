@@ -301,6 +301,14 @@ without claiming that Multivisor owns or fixes Supervisor:
 6. Docker receives Unix Supervisor through a separate `docker` extra, keeping
    the demo/runtime image explicit while central-only installs remain lean.
 
+The Multivisor package and its `rpc` extra are nonetheless compatible with
+CPython 3.12–3.14. The Windows 3.12 restriction describes the executable
+`supervisor-win` peer environment, whose own project pins its interpreter; it
+does not prevent installation of `multivisor[rpc]` on CPython 3.13 or 3.14.
+Once supervisor-win supports a newer interpreter, the required Multivisor work
+is a real Windows integration lane and documentation update, not an adapter
+rewrite or package-floor change.
+
 Primary sources:
 
 - <https://pypi.org/project/supervisor-win/>
@@ -312,15 +320,17 @@ Primary sources:
 
 No separate Multivisor build is required for the Python 3.14 central process
 and Python 3.12 Windows RPC host. Multivisor is pure Python, and its wheel is a
-universal `py3-none-any` distribution with `Requires-Python: >=3.12`. Both
-environments install that same artifact:
+universal `py3-none-any` distribution with `Requires-Python: >=3.12`. The
+adapter package is eligible on every supported interpreter; the Windows RPC
+row below remains 3.12 only because the current Supervisor peer is not
+runnable above it. Both environments install that same artifact:
 
 | Process role | Recommended runtime | Package selection | Supervisor |
 | --- | --- | --- | --- |
 | Central web | Python 3.14 | `multivisor[web]` | Not installed |
 | Central CLI | Python 3.14 | `multivisor[cli]` | Not installed |
 | Unix RPC host | Python 3.12–3.14 | `multivisor[rpc]` | Existing Supervisor 4.3.0+ peer |
-| Windows RPC host | Python 3.12 | `multivisor[rpc]` | Existing `supervisor-win 4.7.0` peer |
+| Windows RPC host with current peer | Python 3.12 | `multivisor[rpc]` | Existing `supervisor-win 4.7.0` peer |
 
 The installer behavior comes from distribution metadata:
 
