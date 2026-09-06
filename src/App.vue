@@ -6,7 +6,7 @@
         <v-list-item
           prepend-avatar="@/assets/multivisor.png"
           subtitle="v7.0.0"
-          title="Multivisor"
+          :title="name"
           router
           to="/about"
         ></v-list-item>
@@ -45,7 +45,8 @@
 </template>
 
 <script setup>
-import { onMounted } from "vue";
+import { onMounted, watch } from "vue";
+import { storeToRefs } from "pinia";
 
 import ToolBar from "@/components/ToolBar";
 import NotificationBar from "@/components/NotificationBar";
@@ -57,6 +58,7 @@ import ProcessDetails from "@/components/process/Details";
 import { useAppStore } from "@/stores/app";
 
 const store = useAppStore();
+const { name } = storeToRefs(store);
 
 const drawerItems = [
   {
@@ -74,6 +76,14 @@ const drawerItems = [
 ];
 
 const drawer = ref(false);
+
+watch(
+  name,
+  (configuredName) => {
+    document.title = configuredName || "Multivisor";
+  },
+  { immediate: true },
+);
 
 onMounted(() => {
   store.init();
