@@ -59,3 +59,7 @@ MANIFEST
 # The prebuilt web UI is versioned so wheels and direct Git installs include it.
 !multivisor/server/dist/
 !multivisor/server/dist/**
+
+# Windows full-example launcher runtime state/configuration.
+examples/full_example/.full-example-launcher.json
+examples/full_example/*.windows.runtime.conf

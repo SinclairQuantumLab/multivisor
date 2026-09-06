@@ -483,6 +483,57 @@ Final local results on Windows 11:
   `supervisor-win` RPC host stays on Python 3.12, while the central process may
   independently move to 3.14 using the same Multivisor wheel.
 
+### Follow-up: Windows full-example launcher (2026-09-05)
+
+The repository's historical full-example instructions require four terminals:
+three `supervisord` instances plus one central web process. On Windows that
+also leaves the runtime split implicit: `supervisor-win` and its in-process
+`multivisor.rpc` adapter must use Python 3.12, while the central server uses
+Python 3.14. `examples/full_example/run.ps1` makes this topology repeatable.
+
+It creates `.venv-rpc` with Python 3.12 and the private `rpc-test` group only
+when needed, synchronizes the central `.venv` with the `web` extra, launches
+the three RPC hosts and central web server in the background, waits for HTTP
+200, and records only its own process IDs. `-Stop` uses that state file and
+`taskkill /T` to terminate exactly those process trees; it refuses to guess at
+or stop an unrecorded user service. `-WebPort` defaults to 22000 and makes a
+side-by-side test possible when a user already owns that port.
+
+`supervisor-win` failed to locate the bare `python` commands in the original
+Unix-oriented demo INI files. The launcher therefore writes ignored,
+same-directory `*.windows.runtime.conf` copies with the Python 3.12 executable
+quoted in each program command. Keeping the copies beside the originals
+preserves Supervisor's `%(here)s` expansion for programs and logs. The source
+INI files are unchanged, so Unix usage remains unchanged.
+
+Changed files:
+
+1. `examples/full_example/run.ps1`: Windows launcher, port/health checks,
+   temporary runtime-config generation, and PID-scoped cleanup.
+2. `.gitignore` and `examples/full_example/.gitignore`: exclude the launcher's
+   transient JSON/runtime config plus normal example logs/PID files.
+3. `README.md`: adds the one-command Windows workflow and `-Stop`/`-WebPort`
+   usage.
+
+Reproduce the validation without disturbing an existing server on 22000:
+
+```powershell
+.\examples\full_example\run.ps1 -WebPort 22001
+$data = Invoke-RestMethod http://127.0.0.1:22001/api/data -TimeoutSec 5
+$supervisors = @($data.supervisors.PSObject.Properties)
+$online = @($supervisors | Where-Object { $_.Value.running }).Count
+$processes = 0
+foreach ($item in $supervisors) { $processes += @($item.Value.processes.PSObject.Properties).Count }
+"supervisors=$($supervisors.Count) online=$online processes=$processes"
+.\examples\full_example\run.ps1 -Stop
+```
+
+Actual Windows result: HTTP 200; 3 of 3 Supervisors online; 23 example
+processes in the snapshot; `-Stop` released ports 9011, 9012, 9021, 9022,
+9031, 9032, and 22001 and removed its state/runtime-config files. This is an
+operational convenience change only: no REST, SSE, ZeroRPC, CLI, Vue, or
+packaged frontend behavior changes.
+
 ### Rollback
 
 Before merge, switch back to `refactor/uv-project`. After merge, reverting the
