@@ -175,6 +175,14 @@ On a mobile device it should look something like the figure on the right.
 Of course the multivisor web server itself can be configured in supervisor as a
 normal program.
 
+#### Reverse proxies
+
+Live updates use a Server-Sent Events stream at `/api/stream`. Multivisor sends
+an SSE comment every 15 seconds so that reverse proxies do not close an otherwise
+idle connection. The response disables caching and sends
+`X-Accel-Buffering: no` to request unbuffered nginx delivery.
+Reverse proxies must still allow long-lived streaming responses.
+
 #### Authentication
 
 To protect multivisor from unwanted access, you can enable authentication.

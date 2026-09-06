@@ -60,6 +60,20 @@ def test_config_view(api_base_url):
 
 
 @pytest.mark.usefixtures("api_base_url")
+def test_stream_sends_immediate_heartbeat(api_base_url):
+    url = "{}/stream".format(api_base_url)
+    with requests.get(url, stream=True, timeout=(2, 2)) as response:
+        assert response.status_code == 200
+        assert response.headers["content-type"].startswith("text/event-stream")
+        assert response.headers["cache-control"] == "no-cache"
+        assert response.headers["x-accel-buffering"] == "no"
+
+        lines = response.iter_lines(chunk_size=1)
+        assert next(lines) == b": keepalive"
+        assert next(lines) == b""
+
+
+@pytest.mark.usefixtures("api_base_url")
 def test_list_processes_view(api_base_url):
     url = f"{api_base_url}/process/list"
     response = requests.get(url)
