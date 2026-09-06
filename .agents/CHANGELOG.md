@@ -1,7 +1,37 @@
 # Engineering change ledger
 
-Entries are newest first. This is a reproducible migration record, not a list of
-commit subjects.
+This file preserves the initial engineering history and occasional substantial
+migrations. Current policy lives in AGENTS.md and PACKAGING.md; older entries
+below describe historical workflows, including superseded wheel-build steps.
+Routine maintenance does not require another ledger entry.
+
+## 2026-09-06 — Source-checkout maintenance baseline
+
+Starting from integrated develop at `ad9e6cb`, the fork adopts editable
+checkout operation with uv and stops maintaining Python release artifacts.
+README is rewritten around group use, upstream attribution, the fixed initial
+change summary, demo, and setup. PACKAGING.md now covers checkout operations.
+AGENTS.md and .agents/README.md make future records proportional to the change.
+
+The Python CI distribution-build step and inherited Pixi files/settings are
+removed. Pixi used obsolete demo paths, installed upstream from PyPI, and
+provided a competing package upload workflow. The project documentation URL
+now points to the fork README. Python build metadata, entry points, frontend
+assets, and Docker's internal non-editable install remain intact.
+
+Operator workflow: select a reviewed checkout, run
+`uv sync --locked --extra web --no-dev`, then
+`uv run --no-sync multivisor -c /absolute/path/to/multivisor.conf`.
+Stop services before updating their editable checkout; retain the previous
+commit for rollback. See PACKAGING.md for peer-host setup and full steps.
+
+Validation passed on local Python 3.14: lock freshness, locked web-only and
+web-plus-CLI sync, both console help commands, import resolving to this
+checkout, HTTP root/favicon responses through Flask's test client, local
+documentation links, and git diff whitespace checks. The CI edit only removes
+the distribution-build step. Runtime matrices and the live demo were not
+repeated because no application code, dependencies, UI, or launcher changed.
+Historical migration details below are preserved.
 
 ## 2026-09-06 — Upstream RC3 integration and release-only artifacts
 

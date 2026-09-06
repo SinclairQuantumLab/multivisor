@@ -1,380 +1,168 @@
-# Multivisor
-
-<img width="60%" align="right" alt="multivisor web on chrome desktop app"
- title="multivisor web on chrome desktop app"
- src="doc/multivisor_desktop.png"
-/>
-
-
-[![Multivisor][pypi-version]](https://pypi.python.org/pypi/multivisor)
-[![Python Versions][pypi-python-versions]](https://pypi.python.org/pypi/multivisor)
-[![Pypi status][pypi-status]](https://pypi.python.org/pypi/multivisor)
-![License][license]
-[![Python][python-build]](https://github.com/SinclairQuantumLab/multivisor/actions/workflows/python.yml)
-
-A centralized supervisor UI (Web & CLI)
-
-* Processes status always up to date
-* Reactivity through asynchronous actions
-* Notifications when state changes
-* Mobile aware, SPA web page
-* Powerful filters
-* Interactive CLI
-* works on [supervisor](https://pypi.org/project/supervisor/)
-  and [supervisor-win](https://pypi.org/project/supervisor-win/)
-
-Multivisor is comprised of 3 components:
-
-1. **web server**: gathers information from all supervisors and provides a
-   dashboard like UI to the entire system
-1. **multivisor RPC**: an RPC extension to supervisor used to communicate
-   between each supervisord and multivisor web server
-1. **CLI**: an optional CLI which communicates with multivisor web server
-
-The web server and CLI are central components; they do not run Supervisor
-internally. Each managed host runs Supervisor plus either the in-process
-`multivisor.rpc` interface or the `multivisor-rpc` event-listener bridge. The
-central process reaches those bridges over ZeroRPC, so the two sides may use
-different Python environments or different computers.
-
-Multivisor's tested compatibility lanes are CPython 3.12, 3.13, and 3.14.
-CPython 3.14 is the recommended runtime for the central web server and CLI. On
-Windows, keep a
-`supervisor-win` RPC host on CPython 3.12 because its `pywin32<=306` dependency
-does not provide CPython 3.13 or 3.14 wheels. This does not hold the central
-component back: the same Multivisor distribution installs in both the Python
-3.14 central environment and the Python 3.12 RPC-host environment.
-
-## Installation and configuration
-
-The configuration format is the same on Linux and Windows. The Python runtime
-topology differs on Windows as described below.
-
-Thanks to the [ESRF](https://esrf.eu) sponsorship, multivisor is able to work
-well with [supervisor-win](https://pypi.org/project/supervisor-win/).
-
-### RPC
-
-The multivisor RPC must be installed in the same environment(s) as your
-supervisord instances. The `rpc` extra installs ZeroRPC; it deliberately does
-not install or replace Supervisor itself.
-
-On Unix, use Supervisor 4.3.0 or newer with Python 3.12, 3.13, or 3.14. On
-Windows, use `supervisor-win 4.7.0` on CPython 3.12 while its current dependency
-constraint remains in place. These are peer-runtime requirements and therefore
-are documented rather than installed by the public `rpc` extra.
-
-From within the same python environment as your supervisord process, type:
-
-```bash
-uv pip install 'multivisor[rpc]'
-```
-
-There are two options to configure multivisor RPC: 1) as an extra
-[rpcinterface](http://supervisord.org/configuration.html#rpcinterface-x-section-settings)
-to supervisord or 2) an [eventlistener](http://supervisord.org/configuration.html#eventlistener-x-section-settings) process managed by supervisord.
-
-The first option has the advantage of not requiring an extra process but it's
-implementation relies on internal supervisord details. Therefore, the multivisor
-author recommends using the 2nd approach.
-
-#### Option 1: rpcinterface
-
-Configure the multivisor rpc interface by adding the following lines
-to your *supervisord.conf*:
-
-```ini
-[rpcinterface:multivisor]
-supervisor.rpcinterface_factory = multivisor.rpc:make_rpc_interface
-bind=*:9002
-```
-
-If no *bind* is given, it defaults to `*:9002`.
-
-Repeat the above procedure for every supervisor you have running.
-
-#### Option 2: eventlistener
-
-Configure the multivisor rpc interface by adding the following lines
-to your *supervisord.conf*:
-
-```ini
-[eventlistener:multivisor-rpc]
-command=multivisor-rpc --bind 0:9002
-events=PROCESS_STATE,SUPERVISOR_STATE_CHANGE
-```
-
-If no *bind* is given, it defaults to `*:9002`.
-
-You are free to choose the event listener name. As a convention we propose
-`multivisor-rpc`.
-
-NB: Make sure that `multivisor-rpc` command is accessible or provide full PATH.
-
-Repeat the above procedure for every supervisor you have running.
-
-
-### Web server
-
-The multivisor web server requires Python 3.12 or newer and is independent of
-the Python used by each Supervisor host. It must be installed on a machine with
-network access to the different supervisors. CPython 3.14 is recommended:
-
-```bash
-uv tool install --python 3.14 'multivisor[web]'
-```
-
-The web server is configured with a INI like configuration file
-(much like supervisor itself) that is passed as command line argument.
-It is usually named *multivisor.conf* but can be any filename you which.
-
-The file consists of a `global` section where you can give an optional name to
-your multivisor instance (default is *multivisor*. This name will appear on the
-top left corner of multivisor the web page).
-
-To add a new supervisor to the list simply add a section `[supervisor:<name>]`.
-It accepts an optional `url` in the format `[<host>][:<port>]`. The default
-is `<name>:9002`.
-
-Here is an example:
-
-```ini
-[global]
-name=ACME
-
-[supervisor:roadrunner]
-# since no url is given it will be roadrunner:9002
-
-[supervisor:coyote]
-# no host is given: defaults to coyote
-url=:9011
-
-[supervisor:bugsbunny]
-# no port is given: defaults to 9002
-url=bugsbunny.acme.org
-
-[supervisor:daffyduck]
-url=daffyduck.acme.org:9007
-```
-
-<img width="40%" align="right" alt="multivisor web on mobile"
- title="multivisor web on mobile"
- src="doc/multivisor_mobile.png"
-/>
-
-Once installed and configured, the web server can be started from the command
-line with:
-
-```bash
-multivisor -c ./multivisor.conf
-```
-
-Start a browser pointing to [localhost:22000](http://localhost:22000).
-On a mobile device it should look something like the figure on the right.
-
-Of course the multivisor web server itself can be configured in supervisor as a
-normal program.
-
-#### Reverse proxies
-
-Live updates use a Server-Sent Events stream at `/api/stream`. Multivisor sends
-an SSE comment every 15 seconds so that reverse proxies do not close an otherwise
-idle connection. The response disables caching and sends
-`X-Accel-Buffering: no` to request unbuffered nginx delivery.
-Reverse proxies must still allow long-lived streaming responses.
-
-#### Authentication
-
-To protect multivisor from unwanted access, you can enable authentication.
-
-Specify `username` and `password` parameters in `global` section of your configuration file e.g.:
-
-```ini
-[global]
-username=test
-password=test
-```
-
-You can also specify `password` as SHA-1 hash in hex, with `{SHA}` prefix: e.g.
-`{SHA}a94a8fe5ccb19ba61c4c0873d391e987982fbbd3` (example hash is `test` in SHA-1).
-
-In order to use authentication, you also need to set `MULTIVISOR_SECRET_KEY` environmental variable,
-as flask sessions module needs some secret value to create secure session.
-You can generate some random hash easily using python:
-`python -c 'import os; import binascii; print(binascii.hexlify(os.urandom(32)))'`
-
-### CLI
-
-The multivisor CLI is an optional component which can be installed with:
-
-```bash
-uv tool install --python 3.14 'multivisor[cli]'
-```
-
-The CLI connects directly to the web server using an HTTP REST API.
-It doesn't require any configuration.
-
-It can be started with:
-
-```bash
-multivisor-cli --url localhost:22000
-```
-
-![CLI in action](doc/cli.svg)
-
-# Running the docker demo
-
-```bash
-$ docker-compose build --parallel
-$ docker-compose up
-```
-
-That's it!
-
-Start a browser pointing to [localhost:22000](http://localhost:22000).
-
-# Running the demo from scratch
-
-```bash
-# Fetch the project:
-git clone https://github.com/SinclairQuantumLab/multivisor
+# Multivisor — Sinclair Quantum Lab
+
+Forked from [tiagocoutinho/multivisor](https://github.com/tiagocoutinho/multivisor).
+See the [original README](https://github.com/tiagocoutinho/multivisor/blob/develop/README.md)
+for upstream documentation. This README describes our group's version.
+
+Multivisor provides a web dashboard and optional CLI for monitoring and
+controlling processes across Supervisor hosts. We maintain this fork so the
+group can adapt it to its infrastructure, test changes locally, and operate
+reviewed source checkouts with reproducible dependencies.
+
+## Our starting point
+
+The initial fork integration (2026-09-06, commit `ad9e6cb`) combines upstream
+`v7.0.0rc3` (`f345835`) with these group-specific changes:
+
+- **Reliable idle live updates:** an immediate SSE comment and a 15-second
+  heartbeat, proxy buffering headers, and listener cleanup on disconnect.
+- **Reproducible environments:** uv and a committed Python lockfile, a repaired
+  npm toolchain/lockfile, and a committed frontend build.
+- **Modern Python with independent hosts:** Python 3.14 for the central server;
+  compatibility coverage for 3.12–3.14. The central server no longer requires
+  a local Supervisor installation. Windows Supervisor/RPC hosts stay on 3.12.
+- **A repeatable demo:** the `demo/` layout and a Windows launcher that starts
+  three Supervisor hosts plus the web server and stops its own process trees.
+- **Maintenance checks:** Python lint, core/RPC tests, cross-runtime CI, and
+  repository guidance for both humans and coding agents.
+
+Vue 3, Vuetify 3, and the RC3 interface improvements come from upstream.
+Our frontend work integrates that baseline and maintains its build tooling.
+
+This is the foundation for our custom repository's ongoing development, not a
+rolling release changelog. Routine changes live in Git history; substantial
+migration notes belong in the [engineering record](.agents/CHANGELOG.md).
+
+## Run from a checkout
+
+Install Git and [uv](https://docs.astral.sh/uv/getting-started/installation/).
+Use `develop` to evaluate the integrated fork; `main` is the target for
+group-approved operational revisions.
+
+```console
+git clone --branch develop https://github.com/SinclairQuantumLab/multivisor.git
 cd multivisor
-
-
-# Install frontend dependencies
-npm ci
-# Build for production with minification
-npm run build
-
-# Create .venv from the committed lockfile. The RPC test group installs
-# Supervisor for this Unix demonstration.
-uv sync --frozen --extra all --group rpc-test
-
-# Launch a few supervisors
-mkdir demo/log
-uv run supervisord -c demo/supervisord_lid001.conf
-uv run supervisord -c demo/supervisord_lid002.conf
-uv run supervisord -c demo/supervisord_baslid001.conf
-
-# Finally, launch multivisor:
-uv run multivisor -c demo/multivisor.conf
+uv sync --locked --extra web --no-dev
 ```
 
-That's it!
+uv installs this checkout in editable mode. We do not publish or manage fork
+wheels or PyPI releases. Keep the checkout in place while its environment is
+in use. Node.js is only needed when changing the frontend.
 
-Start a browser pointing to [localhost:22000](http://localhost:22000). On a mobile
-device it should look something like this:
+Create your own config outside the checkout, for example:
 
-## Windows one-command demo
+```ini
+[global]
+name=Sinclair Quantum Lab
 
-On Windows, the current `supervisor-win` release must remain on Python 3.12,
-while the central web server can use the project's default Python 3.14. The
-PowerShell launcher creates the isolated `.venv-rpc` host environment when it
-is absent, starts all three example Supervisors, and runs the central web
-server in the background:
+[supervisor:lab-host]
+url=lab-host:9002
+```
+
+The URL points to a Multivisor RPC adapter on that host, not Supervisor's
+normal HTTP/XML-RPC port. Configure the host using the
+[RPC setup instructions](PACKAGING.md#supervisor-and-rpc-hosts), then run:
+
+```console
+uv run --no-sync multivisor --bind 127.0.0.1:22000 -c /absolute/path/to/multivisor.conf
+```
+
+Replace the config path with your actual path (quote paths containing spaces).
+Open [localhost:22000](http://localhost:22000). For service managers, use the
+environment's absolute executable path; see [operations](PACKAGING.md).
+
+To include the optional CLI alongside the web server:
+
+```console
+uv sync --locked --extra web --extra cli --no-dev
+uv run --no-sync multivisor-cli --url localhost:22000
+```
+
+## Try the demo
+
+The demo creates sample processes for manual testing. Its Supervisor endpoints
+are unauthenticated; run it on a trusted development machine.
+
+### Windows
+
+From the checkout:
 
 ```powershell
 .\demo\run.ps1
-```
-
-It opens the web UI at [localhost:22000](http://localhost:22000) and returns
-to the PowerShell prompt once all components are healthy. Stop the web server
-and the three Supervisor hosts later with:
-
-```powershell
+# Open http://localhost:22000
 .\demo\run.ps1 -Stop
 ```
 
-The script refuses to reuse its required Supervisor ports (`9011`–`9032`) or
-web port, so it cannot accidentally attach to an already-running local demo or
-service. If a user-owned Multivisor uses `22000`, choose another web port:
+The launcher prepares a Python 3.14 central environment and a separate
+Python 3.12 `.venv-rpc` environment for `supervisor-win`. It returns to the
+prompt after the web server responds. Use `-WebPort 22001` if 22000 is busy.
+Supervisor ports 9011/9012, 9021/9022, and 9031/9032 must also be free.
 
-```powershell
-.\demo\run.ps1 -WebPort 22001
+### Unix
+
+```sh
+uv sync --locked --extra all --group rpc-test
+mkdir -p demo/log
+uv run --no-sync supervisord -c demo/supervisord_lid001.conf
+uv run --no-sync supervisord -c demo/supervisord_lid002.conf
+uv run --no-sync supervisord -c demo/supervisord_baslid001.conf
+uv run --no-sync multivisor -c demo/multivisor.conf
 ```
 
-![multivisor on mobile](doc/multivisor_mobile.png)
+Stop the foreground web server with Ctrl+C, then stop the demo hosts:
 
-# Technologies
+```sh
+uv run --no-sync supervisorctl -c demo/supervisord_lid001.conf shutdown
+uv run --no-sync supervisorctl -c demo/supervisord_lid002.conf shutdown
+uv run --no-sync supervisorctl -c demo/supervisord_baslid001.conf shutdown
+```
 
-![multivisor diagram](doc/diagram.png)
+The existing Docker demo is also available with `docker compose up --build`;
+stop it with `docker compose down`. See [docker-compose.yml](docker-compose.yml)
+for its published ports.
 
-The `multivisor` backend runs a [flask](http://flask.pocoo.org/) web server.
+## Operate and update
 
-The `multivisor-cli` runs a
-[prompt-toolkit](http://python-prompt-toolkit.rtfd.io) based console.
+Use a dedicated operational checkout. Stop its service before updating source
+or synchronizing dependencies, record the running commit with
+`git rev-parse HEAD`, then update to a reviewed revision, sync the same extras,
+and restart. Python edits take effect from the checkout after process restart;
+Vue edits require a frontend rebuild.
 
-The frontend is based on [vue](https://vuejs.org/) +
-[pinia](https://pinia.vuejs.org/) + [vuetify](https://vuetifyjs.com/).
+See [checkout operations](PACKAGING.md) for service commands, RPC installation,
+authentication, reverse proxies, and rollback. Keep local credentials and
+configuration outside Git.
 
-# Development
+## Develop
 
-## Build & Install
+```console
+uv sync --locked --extra all
+uv run --no-sync ruff check .
+uv run --no-sync pytest -q
+```
 
-```bash
-# Install the locked central web/CLI development environment
-uv sync --frozen --extra all
+Core tests work without Supervisor; RPC tests need the host setup described in
+[AGENTS.md](AGENTS.md). Standard GIL-enabled CPython 3.12, 3.13, and 3.14 are
+supported; free-threaded Python is not supported.
 
-# Unix: add Supervisor only for RPC integration work.
-uv sync --frozen --extra all --group rpc-test
+For frontend changes, use Node.js 20.19+ and npm 10+:
 
-# Install the locked frontend dependencies
+```console
 npm ci
-
-# build for production with minification
+npm run lint
 npm run build
-
-# Run the test suite
-uv run pytest
-
 ```
 
-On Windows, keep the default central environment on Python 3.14 and create the
-RPC test host separately on Python 3.12:
+Commit the source, any lockfile changes, and regenerated
+`multivisor/server/dist/` together. With the backend on port 22000,
+`npm run dev` provides the Vite development UI.
 
-```powershell
-uv venv --python 3.12 .venv-rpc
-$env:VIRTUAL_ENV = (Resolve-Path .venv-rpc).Path
-uv sync --active --python 3.12 --frozen --extra rpc --no-default-groups --group rpc-test
-Remove-Item Env:VIRTUAL_ENV
-```
+We use Git Flow names: work branches merge into `develop`, and reviewed
+operational releases reach `main`. A release means a group-approved source
+revision; it does not require publishing a Python package.
 
-See the [migration ledger](.agents/CHANGELOG.md#validation-procedure) for the
-complete cross-runtime test command.
+## Attribution
 
-## Run
-
-```bash
-# serve at localhost:22000
-uv run multivisor -c multivisor.conf
-```
-
-Start a browser pointing to [localhost:22000](http://localhost:22000)
-
-## Development mode
-
-You can run the backend using the vite dev server to facilitate your
-development cycle:
-
-First, start multivisor (which listens on 22000 by default):
-
-```bash
-uv run python -m multivisor.server.web -c multivisor.conf
-```
-
-Now, in another console, run the vite dev server (it will
-transfer the requests between the browser and multivisor):
-
-``` bash
-npm run dev
-```
-
-That's it. If you modify `App.vue` for example, you should see the changes
-directly on your browser.
-
-
-[pypi-python-versions]: https://img.shields.io/pypi/pyversions/multivisor.svg
-[pypi-version]: https://img.shields.io/pypi/v/multivisor.svg
-[pypi-status]: https://img.shields.io/pypi/status/multivisor.svg
-[license]: https://img.shields.io/pypi/l/multivisor.svg
-[python-build]: https://github.com/SinclairQuantumLab/multivisor/actions/workflows/python.yml/badge.svg
+Multivisor was created by Tiago Coutinho and developed with upstream
+contributors, including Samuel Debionne. This fork retains the
+[GPL-3.0-or-later license](LICENSE).

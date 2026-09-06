@@ -57,7 +57,7 @@ dependencies = [
 [project.urls]
 Repository = "https://github.com/SinclairQuantumLab/multivisor"
 Issues = "https://github.com/SinclairQuantumLab/multivisor/issues"
-Documentation = "https://pypi.org/project/multivisor/#description"
+Documentation = "https://github.com/SinclairQuantumLab/multivisor#readme"
 
 [project.scripts]
 multivisor = "multivisor.server.web:main"
