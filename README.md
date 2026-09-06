@@ -225,7 +225,7 @@ That's it!
 
 Start a browser pointing to [localhost:22000](http://localhost:22000).
 
-# Running the example from scratch
+# Running the demo from scratch
 
 ```bash
 # Fetch the project:
@@ -243,13 +243,13 @@ npm run build
 uv sync --frozen --extra all --group rpc-test
 
 # Launch a few supervisors
-mkdir examples/full_example/log
-uv run supervisord -c examples/full_example/supervisord_lid001.conf
-uv run supervisord -c examples/full_example/supervisord_lid002.conf
-uv run supervisord -c examples/full_example/supervisord_baslid001.conf
+mkdir demo/log
+uv run supervisord -c demo/supervisord_lid001.conf
+uv run supervisord -c demo/supervisord_lid002.conf
+uv run supervisord -c demo/supervisord_baslid001.conf
 
 # Finally, launch multivisor:
-uv run multivisor -c examples/full_example/multivisor.conf
+uv run multivisor -c demo/multivisor.conf
 ```
 
 That's it!
@@ -257,7 +257,7 @@ That's it!
 Start a browser pointing to [localhost:22000](http://localhost:22000). On a mobile
 device it should look something like this:
 
-## Windows one-command example
+## Windows one-command demo
 
 On Windows, the current `supervisor-win` release must remain on Python 3.12,
 while the central web server can use the project's default Python 3.14. The
@@ -266,7 +266,7 @@ is absent, starts all three example Supervisors, and runs the central web
 server in the background:
 
 ```powershell
-.\examples\full_example\run.ps1
+.\demo\run.ps1
 ```
 
 It opens the web UI at [localhost:22000](http://localhost:22000) and returns
@@ -274,7 +274,7 @@ to the PowerShell prompt once all components are healthy. Stop the web server
 and the three Supervisor hosts later with:
 
 ```powershell
-.\examples\full_example\run.ps1 -Stop
+.\demo\run.ps1 -Stop
 ```
 
 The script refuses to reuse its required Supervisor ports (`9011`–`9032`) or
@@ -282,7 +282,7 @@ web port, so it cannot accidentally attach to an already-running local demo or
 service. If a user-owned Multivisor uses `22000`, choose another web port:
 
 ```powershell
-.\examples\full_example\run.ps1 -WebPort 22001
+.\demo\run.ps1 -WebPort 22001
 ```
 
 ![multivisor on mobile](doc/multivisor_mobile.png)

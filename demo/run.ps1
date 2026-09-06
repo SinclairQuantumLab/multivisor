@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-Starts or stops the Windows full Multivisor example.
+Starts or stops the Windows Multivisor demo.
 
 .DESCRIPTION
 The example deliberately uses two virtual environments:
@@ -39,7 +39,7 @@ if ($env:OS -ne 'Windows_NT') {
     throw 'This PowerShell launcher is for Windows. Use the documented Unix commands on other platforms.'
 }
 
-$repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
+$repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $exampleRoot = $PSScriptRoot
 $rpcVenv = Join-Path $repoRoot '.venv-rpc'
 $rpcScripts = Join-Path $rpcVenv 'Scripts'
@@ -51,7 +51,7 @@ $configs = @(
     (Join-Path $exampleRoot 'supervisord_baslid001.conf')
 )
 $runtimeConfigs = @($configs | ForEach-Object { "$_.windows.runtime.conf" })
-$stateFile = Join-Path $exampleRoot '.full-example-launcher.json'
+$stateFile = Join-Path $exampleRoot '.multivisor-demo-launcher.json'
 $webExecutable = Join-Path $repoRoot '.venv\Scripts\multivisor.exe'
 $requiredPorts = @(9011, 9012, 9021, 9022, 9031, 9032, $WebPort)
 $supervisorProcesses = @()
@@ -92,7 +92,7 @@ function Stop-Example {
         Remove-Item -LiteralPath $runtimeConfig -Force -ErrorAction SilentlyContinue
     }
     Remove-Item -LiteralPath $stateFile -Force
-    Write-Host 'Stopped the full-example web server and Supervisor process trees.'
+    Write-Host 'Stopped the demo web server and Supervisor process trees.'
 }
 
 if ($Stop) {
@@ -101,17 +101,28 @@ if ($Stop) {
 }
 
 if (Test-Path -LiteralPath $stateFile) {
-    throw "A previous launcher run is still recorded. Run .\examples\full_example\run.ps1 -Stop first."
+    throw "A previous launcher run is still recorded. Run .\demo\run.ps1 -Stop first."
 }
 
-if (-not (Test-Path -LiteralPath $supervisord)) {
+$rpcHostReady = $false
+if ((Test-Path -LiteralPath $rpcPython) -and (Test-Path -LiteralPath $supervisord)) {
+    try {
+        $rpcVersion = (& $rpcPython -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')").Trim()
+        $rpcHostReady = ($LASTEXITCODE -eq 0 -and $rpcVersion -eq '3.12')
+    }
+    catch {
+        $rpcHostReady = $false
+    }
+}
+
+if (-not $rpcHostReady) {
     if ($SkipSetup) {
-        throw "Missing $supervisord. Run without -SkipSetup to create the Python 3.12 RPC-host environment."
+        throw "Missing a Python 3.12 Supervisor host at $rpcVenv. Run without -SkipSetup to create it."
     }
 
     Push-Location $repoRoot
     try {
-        & uv venv --python 3.12 .venv-rpc
+        & uv venv --clear --python 3.12 .venv-rpc
         $previousVenv = $env:VIRTUAL_ENV
         $previousPath = $env:PATH
         try {
@@ -149,11 +160,15 @@ try {
 
     New-Item -ItemType Directory -Force -Path (Join-Path $exampleRoot 'log') | Out-Null
 
-    # supervisor-win cannot reliably resolve a bare `python`. Keep the copied
-    # config beside its source so %(here)s still resolves the demo scripts/logs.
+    # supervisor-win cannot reliably resolve a bare `python`. Its command
+    # parser also treats Windows backslashes as escapes, so the copy expands
+    # %(here)s to forward-slash absolute paths before Supervisor reads it.
+    $forwardRpcPython = $rpcPython -replace '\\', '/'
+    $forwardExampleRoot = $exampleRoot -replace '\\', '/'
     for ($index = 0; $index -lt $configs.Count; $index++) {
         $content = Get-Content -LiteralPath $configs[$index] -Raw
-        $content = $content -replace '(?m)^command=python(?=\s)', "command=`"$rpcPython`""
+        $content = $content.Replace('%(here)s', $forwardExampleRoot)
+        $content = $content -replace '(?m)^command=python(?=\s)', "command=`"$forwardRpcPython`""
         Set-Content -LiteralPath $runtimeConfigs[$index] -Value $content -NoNewline
     }
 
@@ -173,7 +188,7 @@ try {
             Start-Sleep -Seconds 1
         }
         if (-not $ready) {
-            throw "RPC endpoint 127.0.0.1:$port did not become ready. Inspect examples\full_example\log."
+            throw "RPC endpoint 127.0.0.1:$port did not become ready. Inspect demo\log."
         }
     }
 
@@ -209,8 +224,8 @@ try {
         throw "The web server did not answer on http://127.0.0.1:$WebPort/. Inspect $webLog and run -Stop."
     }
 
-    Write-Host "Full example is running at http://127.0.0.1:$WebPort (web PID $($webProcess.Id))."
-    Write-Host 'Stop it later with .\examples\full_example\run.ps1 -Stop.'
+    Write-Host "Demo is running at http://127.0.0.1:$WebPort (web PID $($webProcess.Id))."
+    Write-Host 'Stop it later with .\demo\run.ps1 -Stop.'
 }
 catch {
     if (Test-Path -LiteralPath $stateFile) {

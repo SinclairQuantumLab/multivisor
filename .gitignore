@@ -60,6 +60,6 @@ MANIFEST
 !multivisor/server/dist/
 !multivisor/server/dist/**
 
-# Windows full-example launcher runtime state/configuration.
-examples/full_example/.full-example-launcher.json
-examples/full_example/*.windows.runtime.conf
+# Windows demo launcher runtime state/configuration.
+demo/.multivisor-demo-launcher.json
+demo/*.windows.runtime.conf
