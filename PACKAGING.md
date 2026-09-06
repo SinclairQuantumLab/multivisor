@@ -41,28 +41,12 @@ the `multivisor-rpc` event-listener bridge in its Supervisor environment.
 | Role | Python | Dependencies |
 | --- | --- | --- |
 | Central web / CLI | 3.14 recommended; 3.12–3.14 supported | `web` / `cli` extras |
-| Unix Supervisor/RPC host | 3.12–3.14 | Supervisor 4.3.0+ and `rpc` extra |
-| Windows Supervisor/RPC host with released supervisor-win 4.7.0 | 3.12 | supervisor-win 4.7.0 and `rpc` extra |
+| RPC adapter | 3.12–3.14 | `rpc` extra and an existing Supervisor peer |
 
-The `multivisor[rpc]` package and adapter code support CPython 3.12–3.14; the
-Unix lane verifies real RPC round trips on each of those versions. The Windows
-3.12 row is instead the current executable-peer limit: supervisor-win 4.7.0
-pins `pywin32` to wheels that stop at CPython 3.12. Public extras do not
-install, upgrade, or override Supervisor. Keep that constraint in the
-Supervisor host's own project, for example:
-
-```toml
-[project]
-requires-python = "==3.12.*"
-dependencies = [
-  "supervisor-win==4.7.0",
-  "multivisor[rpc] @ git+https://github.com/SinclairQuantumLab/multivisor.git@<release-tag>",
-]
-```
-
-When supervisor-win publishes a supported newer runtime, update that host's
-project and add a passing Windows RPC integration lane; no Multivisor package
-floor change is implied.
+The `multivisor[rpc]` package and adapter code support CPython 3.12–3.14.
+Supervisor remains an external peer: public extras do not install, upgrade,
+constrain, or document its runtime. The host administrator owns that
+environment and installs the adapter alongside it.
 
 For an existing Supervisor environment, install this checkout using that
 environment's Python. Replace the interpreter path with the actual one:

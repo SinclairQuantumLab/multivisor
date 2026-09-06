@@ -20,9 +20,8 @@ The initial fork integration (2026-09-06, commit `ad9e6cb`) combines upstream
   npm toolchain/lockfile, and a committed frontend build.
 - **Modern Python with independent hosts:** Python 3.14 for the central server;
   compatibility coverage for 3.12–3.14, including the RPC package. The central
-  server no longer requires a local Supervisor installation. Current Windows
-  `supervisor-win` hosts stay on 3.12 because of their peer dependency, not a
-  Multivisor RPC limitation.
+  server no longer requires a local Supervisor installation. Supervisor peer
+  environments remain independently managed.
 - **A repeatable demo:** the `demo/` layout and a Windows launcher that starts
   three Supervisor hosts plus the web server and stops its own process trees.
 - **Maintenance checks:** Python lint, core/RPC tests, cross-runtime CI, and
@@ -100,11 +99,9 @@ From the checkout:
 ```
 
 The launcher prepares a Python 3.14 central environment and a separate
-Python 3.12 `.venv-rpc` environment for the current `supervisor-win` peer.
-The RPC adapter itself is compatible with 3.12–3.14; the Windows 3.12 choice
-comes from supervisor-win's released `pywin32` bound. It returns to the prompt
-after the web server responds. Use `-WebPort 22001` if 22000 is busy.
-Supervisor ports 9011/9012, 9021/9022, and 9031/9032 must also be free.
+`.venv-rpc` environment to demonstrate the isolated peer topology. It returns
+to the prompt after the web server responds. Use `-WebPort 22001` if 22000 is
+busy. Supervisor ports 9011/9012, 9021/9022, and 9031/9032 must also be free.
 
 ### Unix
 

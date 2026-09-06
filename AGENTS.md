@@ -53,20 +53,13 @@ dirty worktree and never rewrite shared history without explicit authorization.
 - `.python-version`, `requires-python`, classifiers, CI, Docker images, and the
   runtime policy in `README.md` and `PACKAGING.md` must agree.
 
-Windows caveat: the Multivisor RPC package and adapter code support CPython
-3.12–3.14. Released `supervisor-win 4.7.0`, however, constrains `pywin32` to
-`>228,<=306`, whose wheels stop at CPython 3.12. Its own Supervisor-host
-environment must therefore select CPython 3.12 today; do not override that
-upstream dependency bound. This is a peer-runtime execution limit, not a
-Multivisor `rpc` extra or package-metadata limit. The central web server and
-CLI can run on CPython 3.14 on the same or another machine. When supervisor-win
-supports a newer interpreter, add and pass the corresponding Windows RPC
-integration lane before documenting it as runnable. See `PACKAGING.md` for
-current setup and `.agents/CHANGELOG.md` for the historical reasoning.
-
-Supported RPC peer runtimes are Supervisor 4.3.0 or newer on Unix and
-`supervisor-win 4.7.0` on Windows. Public extras do not install or upgrade this
-peer; keep the RPC adapter in the same environment as the selected Supervisor.
+The Multivisor RPC package and adapter code support CPython 3.12–3.14.
+Supervisor is an independently managed peer runtime: public extras do not
+install, upgrade, constrain, or document its interpreter/dependency policy.
+Install the adapter into the environment selected by the host administrator.
+The central web server and CLI can use a separate Python environment on the
+same or another machine. See `PACKAGING.md` for the adapter installation
+boundary.
 
 ## Initial setup
 
@@ -118,11 +111,10 @@ uv run --isolated --python 3.14 --extra all --frozen ruff check .
 uv run --isolated --python 3.14 --extra all --frozen pytest -q
 ```
 
-Run Supervisor/RPC integration on Unix 3.12, 3.13, and 3.14 by adding
-`--group rpc-test`. On Windows, run that group only on 3.12. Also preserve the
-CI cross-runtime lanes in which Python 3.13 and 3.14 central processes call a
-Python 3.12 `supervisor-win` RPC host. RPC lanes must fail, rather than skip, if
-the required Supervisor or adapter executable is missing.
+Run real Supervisor/RPC integration with a separately managed peer environment
+for the supported adapter versions, using `--group rpc-test` where applicable.
+Keep cross-runtime central-to-peer coverage. RPC lanes must fail, rather than
+skip, if the required peer or adapter executable is missing.
 
 ### Frontend changes
 
