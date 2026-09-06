@@ -50,9 +50,13 @@ operational only: no REST, SSE, RPC, frontend, or visible UI behavior changes.
 
 ### Verification
 
-Run `uv lock --check`, `uv build --no-sources`, and a disposable downstream
-`uv sync --frozen` after the named ref is available on GitHub. Record the
-actual results here before merge.
+| Check | Result |
+| --- | --- |
+| `uv lock --check` in this repository | Passed on CPython 3.14.3 |
+| `uv build --no-sources` | Passed; built a source distribution and pure-Python wheel without committing either artifact |
+| Downstream Git resolution | `multivisor-web` locked `refactor/git-package-deployment` to commit `3f2caaf22b0241c0e62cb6f9d92251d968e88ace` |
+| Downstream sync and command smoke tests | `uv sync --frozen`, `multivisor --help`, and `multivisor-cli --help` passed on CPython 3.14.3 |
+| `git diff --check` | Passed in both repositories |
 
 ## 2026-09-06 — Source-checkout maintenance baseline
 
