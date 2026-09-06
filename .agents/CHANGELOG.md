@@ -5,6 +5,55 @@ migrations. Current policy lives in AGENTS.md and PACKAGING.md; older entries
 below describe historical workflows, including superseded wheel-build steps.
 Routine maintenance does not require another ledger entry.
 
+## 2026-09-06 — Git-package deployment boundary
+
+### Objective
+
+Replace editable source-checkout operation with package installation from an
+immutable Git release tag. Keep application development in this repository and
+move group configuration, service definitions, and deployment locks to
+`SinclairQuantumLab/multivisor-web`.
+
+### Starting state and target
+
+The preceding source-checkout policy required operators to clone this
+repository and run `uv sync` in place. The target is an operational project
+whose `pyproject.toml` contains a direct Git requirement such as:
+
+```console
+uv add "multivisor[web,cli] @ git+https://github.com/SinclairQuantumLab/multivisor.git@<release-tag>"
+uv sync --frozen
+```
+
+The tag must be immutable and created from `main` only after required checks.
+`develop` and work branches may be installed solely for disposable integration
+tests. A direct Git reference cannot choose an older compatible release when
+the selected revision's `Requires-Python` excludes the active interpreter.
+
+### Files and effects
+
+- `README.md`: replaces the operational checkout quick start with a
+  `multivisor-web` Git-dependency workflow and documents tag-based updates.
+- `PACKAGING.md`: documents central and RPC-host installation, lockfile update,
+  rollback, and release build boundaries for direct Git dependencies.
+- `AGENTS.md` and `.agents/README.md`: make release tags and package metadata,
+  rather than editable checkout operation, the maintained contributor policy.
+- `SinclairQuantumLab/multivisor-web` receives the corresponding deployment
+  dependency and lockfile on its own `refactor/git-package-deployment` branch.
+
+### Constraints and impact
+
+This does not require publishing to PyPI or committing wheels. `uv` builds the
+normal package from the selected Git revision; release builds remain useful for
+validation and optional future publication. The change is structural and
+operational only: no REST, SSE, RPC, frontend, or visible UI behavior changes.
+
+### Verification
+
+Run `uv lock --check`, `uv build --no-sources`, and a disposable downstream
+`uv sync --frozen` after the named ref is available on GitHub. Record the
+actual results here before merge.
+
 ## 2026-09-06 — Source-checkout maintenance baseline
 
 Starting from integrated develop at `ad9e6cb`, the fork adopts editable

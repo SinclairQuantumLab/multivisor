@@ -161,23 +161,28 @@ never reuse a user's production container name or port.
 - Keep public CLI flags, INI keys, REST paths, SSE payloads, and Vue behavior
   backward compatible unless a documented migration is intentional.
 
-## Checkout and installation rules
+## Package and installation rules
 
-- Operate a reviewed source checkout using editable `uv sync`; no routine
-  wheel/sdist build or publication is required on any branch, including main.
-- Keep `pyproject.toml`, the build backend, and console-script declarations:
-  they support editable installation and all three commands. Each command
-  requires its corresponding extra; RPC adapters need a Supervisor peer.
+- Keep `pyproject.toml`, the build backend, and console-script declarations as
+  a normal installable package. Operational projects install an immutable Git
+  tag with a direct requirement such as
+  `multivisor[web] @ git+https://github.com/SinclairQuantumLab/multivisor.git@<tag>`.
+  Each command requires its corresponding extra; RPC adapters need a Supervisor
+  peer.
+- Release tags are created only from `main` after the required checks pass.
+  Development and integration branches must never be used as production Git
+  dependencies. A release may build a wheel/sdist for validation or explicit
+  publication; never commit those artifacts.
 - Retain explicit frontend package data and test-package exclusions. The
   committed `multivisor/server/dist/` must contain index.html, favicon.ico,
   and referenced assets. Do not hand-edit generated files.
 - Installer-generated intermediate wheels/caches are implementation details,
-  not managed release artifacts. Do not add artifact-deletion hooks.
+  not managed release artifacts.
 - Docker uses locked dependencies and a non-editable install because only its
   environment is copied to the runtime image. Keep its explicit docker extra.
 - Use uv and npm as the maintained environment tools.
-- Keep operational checkouts separate from development and stop services before
-  changing their source or environments. See `PACKAGING.md`.
+- Keep operational projects separate from development and stop services before
+  changing their locked package revision or environment. See `PACKAGING.md`.
 - Never commit environments, distribution artifacts, caches, logs, credentials,
   or local Supervisor state.
 

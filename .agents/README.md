@@ -3,7 +3,7 @@
 These documents support both human maintainers and coding agents.
 
 - `../README.md`: fork purpose, fixed initial-change summary, and quick start.
-- `../PACKAGING.md`: current checkout operations, peer setup, and updates.
+- `../PACKAGING.md`: current Git dependency operations, peer setup, and updates.
 - `../AGENTS.md`: current contribution, testing, and branch rules.
 - `CHANGELOG.md`: preserved initial engineering history and occasional
   substantial migration notes. Historical instructions may be superseded by
