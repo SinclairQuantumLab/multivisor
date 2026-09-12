@@ -1,32 +1,36 @@
-# Checkout operations
+# Git dependency operations
 
-This fork is operated from a source checkout with an editable uv environment.
-There is no wheel publication or distribution-artifact workflow, including on
-`main`. The filename is retained so existing documentation links keep working.
+This fork is consumed as a Python package from an immutable Git tag. The
+operational repository owns configuration, service definitions, and its
+`uv.lock`; this repository owns application source, tests, and release tags.
+Direct Git installation builds from the selected repository revision, so no
+wheel publication is necessary for normal group operation.
 
 ## Environment and service startup
 
-From the selected checkout:
+From an operational project such as `multivisor-web`:
 
 ```console
-uv sync --locked --extra web --no-dev
-uv run --no-sync multivisor --bind 127.0.0.1:22000 -c /absolute/path/to/multivisor.conf
+uv add "multivisor[web] @ git+https://github.com/SinclairQuantumLab/multivisor.git@<release-tag>"
+uv sync --frozen
+uv run multivisor --bind 127.0.0.1:22000 -c /absolute/path/to/multivisor.conf
 ```
 
-`--locked` rejects an out-of-date lockfile; it does not upgrade dependencies.
-`--no-sync` runs the prepared environment without modifying it at startup.
-Include all roles you need when synchronizing, for example `--extra web
---extra cli`. An exact `uv sync` can remove packages outside the selected
-dependency set.
+Replace `<release-tag>` with an approved, immutable fork tag. `uv add` writes
+the direct Git requirement and resolves it to a commit in `uv.lock`; `uv sync
+--frozen` then recreates exactly that environment. Include all roles in the
+same requirement when needed, for example `multivisor[web,cli]`. Do not use a
+floating branch for a production service. A branch such as `develop` is useful
+only for a disposable integration test and does not automatically fall back to
+an older release on an incompatible Python version.
 
 Service managers should invoke the prepared executable directly:
 
-- Windows: `C:\path\to\multivisor\.venv\Scripts\multivisor.exe`
-- Unix: `/path/to/multivisor/.venv/bin/multivisor`
+- Windows: `C:\path\to\multivisor-web\.venv\Scripts\multivisor.exe`
+- Unix: `/path/to/multivisor-web/.venv/bin/multivisor`
 
-Use absolute paths for the executable and config, and the checkout as the
-working directory. Keep operational checkouts separate from development
-checkouts; an editable environment continues to read from its source directory.
+Use absolute paths for the executable and config, and the operational project
+as the working directory. Keep its credentials and configuration out of Git.
 
 ## Supervisor and RPC hosts
 
@@ -37,24 +41,26 @@ the `multivisor-rpc` event-listener bridge in its Supervisor environment.
 | Role | Python | Dependencies |
 | --- | --- | --- |
 | Central web / CLI | 3.14 recommended; 3.12–3.14 supported | `web` / `cli` extras |
-| Unix Supervisor/RPC host | 3.12–3.14 | Supervisor 4.3.0+ and `rpc` extra |
-| Windows Supervisor/RPC host | 3.12 | supervisor-win 4.7.0 and `rpc` extra |
+| RPC adapter | 3.12–3.14 | `rpc` extra and an existing Supervisor peer |
 
-The Windows limit follows supervisor-win's pywin32 constraint. Public extras
-do not install, upgrade, or override Supervisor.
+The `multivisor[rpc]` package and adapter code support CPython 3.12–3.14.
+Supervisor remains an external peer: public extras do not install, upgrade,
+constrain, or document its runtime. The host administrator owns that
+environment and installs the adapter alongside it.
 
 For an existing Supervisor environment, install this checkout using that
 environment's Python. Replace the interpreter path with the actual one:
 
 ```console
-uv pip install --python /path/to/supervisor-environment/python -e ".[rpc]"
+uv pip install --python /path/to/supervisor-environment/python "multivisor[rpc] @ git+https://github.com/SinclairQuantumLab/multivisor.git@<release-tag>"
 ```
 
 This additive installation preserves the host's peer runtime. It resolves the
-RPC dependencies from project metadata, not `uv.lock`; retain that host's own
-dependency management. Do not apply an exact project sync to an independently
-managed Supervisor environment. For a disposable locked demo/RPC test host,
-use the project's `rpc-test` group as described in README and AGENTS.
+RPC dependencies from the tagged package metadata, not the central project's
+`uv.lock`; retain that host's own dependency management. Do not apply an exact
+project sync to an independently managed Supervisor environment. For a
+disposable locked demo/RPC test host, use this repository's `rpc-test` group as
+described in README and AGENTS.
 
 Choose one adapter. For the in-process interface, add to `supervisord.conf`:
 
@@ -99,22 +105,30 @@ every proxy policy.
 
 ## Updates and rollback
 
-1. Record `git rev-parse HEAD` and stop the service.
-2. Fetch updates and select a reviewed commit or tag. On an operational branch
-   that tracks its remote, `git pull --ff-only` accepts only a fast-forward.
-3. Run `uv sync --locked --extra web --no-dev` (with any other required extras).
-4. Restart and verify the web route and connections to the managed hosts.
+1. Record `uv tree` and stop the service.
+2. Change the direct Git requirement to a reviewed release tag with `uv add`.
+3. Run `uv lock` and commit the resulting `pyproject.toml` and `uv.lock` in the
+   operational repository.
+4. Run `uv sync --frozen`, restart, and verify the web route and connections to
+   the managed hosts.
 
-For rollback, stop the service, check out the previously recorded commit in a
-clean operational checkout, synchronize its lockfile with the same extras,
-then restart. Keep configuration backups separately. Never switch branches or
-rewrite source under a running operational process.
+For rollback, stop the service, restore the previous operational
+`pyproject.toml` and `uv.lock`, synchronize with `uv sync --frozen`, then
+restart. Keep configuration backups separately.
 
-## Build machinery retained for installation
+## Package and release mechanics
 
-`pyproject.toml`, setuptools, and the console-script declarations support
-editable installation. Installer caches may contain intermediate wheels;
-maintainers do not distribute or curate them.
+`pyproject.toml`, setuptools, and the console-script declarations define a
+normal Python package. A direct Git dependency invokes that build machinery at
+install time. On an approved release, build and inspect with:
+
+```console
+uv build --no-sources
+```
+
+Do not commit `dist/` or any generated wheel/sdist. Publishing to a package
+index is optional and must be an explicit release decision; it is not required
+by the Git dependency workflow.
 
 The web server reads `multivisor/server/dist/`. This committed frontend output
 is runtime input, so it is retained even without Python distribution releases.
@@ -123,7 +137,7 @@ Frontend contributors rebuild it with `npm ci`, `npm run lint`, and
 
 The optional Docker image uses a non-editable install because its final stage
 copies the virtual environment without the source checkout. This remains an
-internal image-build step and needs no separately managed wheel.
+internal image-build step.
 
 uv and npm are the maintained environment tools; the inherited Pixi setup has
 been removed. See [AGENTS.md](AGENTS.md) for contributor checks and

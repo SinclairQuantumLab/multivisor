@@ -4,9 +4,9 @@
     <v-navigation-drawer expand-on-hover permanent rail>
       <v-list>
         <v-list-item
-          prepend-avatar="@/assets/multivisor.png"
+          prepend-avatar="@/assets/icon/favicon/favicon-48x48.png"
           subtitle="v7.0.0"
-          title="Multivisor"
+          :title="name"
           router
           to="/about"
         ></v-list-item>
@@ -14,11 +14,11 @@
       <v-divider></v-divider>
       <v-list :items="drawerItems" density="compact" nav>
         <v-list-item
-          prepend-icon="mdi-cog"
-          title="Processes"
-          value="processes"
+          prepend-icon="mdi-desktop-classic"
+          title="Supervisors"
+          value="supervisors"
           router
-          to="/process"
+          to="/supervisor"
         ></v-list-item>
         <v-list-item
           prepend-icon="mdi-account-multiple"
@@ -28,11 +28,11 @@
           to="/group"
         ></v-list-item>
         <v-list-item
-          prepend-icon="mdi-desktop-classic"
-          title="Supervisors"
-          value="supervisors"
+          prepend-icon="mdi-cog"
+          title="Processes"
+          value="processes"
           router
-          to="/supervisor"
+          to="/process"
         ></v-list-item>
       </v-list>
     </v-navigation-drawer>
@@ -45,7 +45,8 @@
 </template>
 
 <script setup>
-import { onMounted } from "vue";
+import { onMounted, watch } from "vue";
+import { storeToRefs } from "pinia";
 
 import ToolBar from "@/components/ToolBar";
 import NotificationBar from "@/components/NotificationBar";
@@ -57,23 +58,32 @@ import ProcessDetails from "@/components/process/Details";
 import { useAppStore } from "@/stores/app";
 
 const store = useAppStore();
+const { name } = storeToRefs(store);
 
 const drawerItems = [
   {
-    title: "Processes",
-    value: "process",
-  },
-  {
     title: "Supervisors",
-    value: "Supervisor",
+    value: "supervisor",
   },
   {
     title: "Groups",
     value: "group",
   },
+  {
+    title: "Processes",
+    value: "process",
+  },
 ];
 
 const drawer = ref(false);
+
+watch(
+  name,
+  (configuredName) => {
+    document.title = configuredName || "Multivisor";
+  },
+  { immediate: true },
+);
 
 onMounted(() => {
   store.init();

@@ -7,7 +7,7 @@ for upstream documentation. This README describes our group's version.
 Multivisor provides a web dashboard and optional CLI for monitoring and
 controlling processes across Supervisor hosts. We maintain this fork so the
 group can adapt it to its infrastructure, test changes locally, and operate
-reviewed source checkouts with reproducible dependencies.
+reviewed Git revisions with reproducible dependencies.
 
 ## Our starting point
 
@@ -19,8 +19,9 @@ The initial fork integration (2026-09-06, commit `ad9e6cb`) combines upstream
 - **Reproducible environments:** uv and a committed Python lockfile, a repaired
   npm toolchain/lockfile, and a committed frontend build.
 - **Modern Python with independent hosts:** Python 3.14 for the central server;
-  compatibility coverage for 3.12–3.14. The central server no longer requires
-  a local Supervisor installation. Windows Supervisor/RPC hosts stay on 3.12.
+  compatibility coverage for 3.12–3.14, including the RPC package. The central
+  server no longer requires a local Supervisor installation. Supervisor peer
+  environments remain independently managed.
 - **A repeatable demo:** the `demo/` layout and a Windows launcher that starts
   three Supervisor hosts plus the web server and stops its own process trees.
 - **Maintenance checks:** Python lint, core/RPC tests, cross-runtime CI, and
@@ -33,21 +34,24 @@ This is the foundation for our custom repository's ongoing development, not a
 rolling release changelog. Routine changes live in Git history; substantial
 migration notes belong in the [engineering record](.agents/CHANGELOG.md).
 
-## Run from a checkout
+## Install in an operational project
 
 Install Git and [uv](https://docs.astral.sh/uv/getting-started/installation/).
-Use `develop` to evaluate the integrated fork; `main` is the target for
-group-approved operational revisions.
+Keep the application package separate from the group configuration and service
+repository. The package is installed from a reviewed, immutable Git tag; the
+consumer's `uv.lock` records the resulting commit.
 
 ```console
-git clone --branch develop https://github.com/SinclairQuantumLab/multivisor.git
-cd multivisor
-uv sync --locked --extra web --no-dev
+git clone https://github.com/SinclairQuantumLab/multivisor-web.git
+cd multivisor-web
+uv add "multivisor[web] @ git+https://github.com/SinclairQuantumLab/multivisor.git@<release-tag>"
+uv sync --frozen
 ```
 
-uv installs this checkout in editable mode. We do not publish or manage fork
-wheels or PyPI releases. Keep the checkout in place while its environment is
-in use. Node.js is only needed when changing the frontend.
+Replace `<release-tag>` with the approved fork tag, never a floating branch in
+production. `uv add` builds the package from that Git revision; a separately
+published wheel is not required. Node.js is only needed when changing the
+frontend in this repository.
 
 Create your own config outside the checkout, for example:
 
@@ -64,7 +68,7 @@ normal HTTP/XML-RPC port. Configure the host using the
 [RPC setup instructions](PACKAGING.md#supervisor-and-rpc-hosts), then run:
 
 ```console
-uv run --no-sync multivisor --bind 127.0.0.1:22000 -c /absolute/path/to/multivisor.conf
+uv run multivisor --bind 127.0.0.1:22000 -c /absolute/path/to/multivisor.conf
 ```
 
 Replace the config path with your actual path (quote paths containing spaces).
@@ -74,8 +78,9 @@ environment's absolute executable path; see [operations](PACKAGING.md).
 To include the optional CLI alongside the web server:
 
 ```console
-uv sync --locked --extra web --extra cli --no-dev
-uv run --no-sync multivisor-cli --url localhost:22000
+uv add "multivisor[web,cli] @ git+https://github.com/SinclairQuantumLab/multivisor.git@<release-tag>"
+uv sync --frozen
+uv run multivisor-cli --url localhost:22000
 ```
 
 ## Try the demo
@@ -94,9 +99,9 @@ From the checkout:
 ```
 
 The launcher prepares a Python 3.14 central environment and a separate
-Python 3.12 `.venv-rpc` environment for `supervisor-win`. It returns to the
-prompt after the web server responds. Use `-WebPort 22001` if 22000 is busy.
-Supervisor ports 9011/9012, 9021/9022, and 9031/9032 must also be free.
+`.venv-rpc` environment to demonstrate the isolated peer topology. It returns
+to the prompt after the web server responds. Use `-WebPort 22001` if 22000 is
+busy. Supervisor ports 9011/9012, 9021/9022, and 9031/9032 must also be free.
 
 ### Unix
 
@@ -123,15 +128,15 @@ for its published ports.
 
 ## Operate and update
 
-Use a dedicated operational checkout. Stop its service before updating source
-or synchronizing dependencies, record the running commit with
-`git rev-parse HEAD`, then update to a reviewed revision, sync the same extras,
-and restart. Python edits take effect from the checkout after process restart;
-Vue edits require a frontend rebuild.
+Use a dedicated operational project such as `multivisor-web`. Stop its service
+before changing its locked package revision, record the installed commit with
+`uv tree`, then update the Git tag with `uv add`, regenerate the lock, sync,
+and restart. Python and built frontend changes take effect after process
+restart.
 
-See [checkout operations](PACKAGING.md) for service commands, RPC installation,
-authentication, reverse proxies, and rollback. Keep local credentials and
-configuration outside Git.
+See [Git dependency operations](PACKAGING.md) for service commands, RPC
+installation, authentication, reverse proxies, and rollback. Keep local
+credentials and configuration outside Git.
 
 ## Develop
 
@@ -158,8 +163,10 @@ Commit the source, any lockfile changes, and regenerated
 `npm run dev` provides the Vite development UI.
 
 We use Git Flow names: work branches merge into `develop`, and reviewed
-operational releases reach `main`. A release means a group-approved source
-revision; it does not require publishing a Python package.
+operational releases reach `main` and receive an immutable Git tag. The tag is
+the package reference used by operational projects. A release may build a wheel
+for validation or later publication, but development branches never carry
+distribution artifacts.
 
 ## Attribution
 

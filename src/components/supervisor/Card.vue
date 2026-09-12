@@ -102,7 +102,7 @@ const inactive = computed(() => {
   return !supervisor.running;
 });
 const toolbarColor = computed(() => {
-  return inactive.value ? "grey lighten-1" : "purple-darken-2";
+  return inactive.value ? "grey lighten-1" : "indigo";
 });
 const selectedProcesses = computed(() => {
   let procs = store.selectedProcesses.reduce((processes, puid) => {

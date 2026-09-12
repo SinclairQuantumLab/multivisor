@@ -53,17 +53,13 @@ dirty worktree and never rewrite shared history without explicit authorization.
 - `.python-version`, `requires-python`, classifiers, CI, Docker images, and the
   runtime policy in `README.md` and `PACKAGING.md` must agree.
 
-Windows caveat: released `supervisor-win 4.7.0` constrains `pywin32` to
-`>228,<=306`, whose wheels stop at CPython 3.12. Keep a Windows Supervisor/RPC
-host on CPython 3.12; do not override that upstream dependency bound. The
-central web server and CLI can run on CPython 3.14 on the same or another
-machine. Both sides can use the same source revision with different extras
-and peer runtimes. See `PACKAGING.md` for current setup and
-`.agents/CHANGELOG.md` for the historical reasoning.
-
-Supported RPC peer runtimes are Supervisor 4.3.0 or newer on Unix and
-`supervisor-win 4.7.0` on Windows. Public extras do not install or upgrade this
-peer; keep the RPC adapter in the same environment as the selected Supervisor.
+The Multivisor RPC package and adapter code support CPython 3.12–3.14.
+Supervisor is an independently managed peer runtime: public extras do not
+install, upgrade, constrain, or document its interpreter/dependency policy.
+Install the adapter into the environment selected by the host administrator.
+The central web server and CLI can use a separate Python environment on the
+same or another machine. See `PACKAGING.md` for the adapter installation
+boundary.
 
 ## Initial setup
 
@@ -115,11 +111,10 @@ uv run --isolated --python 3.14 --extra all --frozen ruff check .
 uv run --isolated --python 3.14 --extra all --frozen pytest -q
 ```
 
-Run Supervisor/RPC integration on Unix 3.12, 3.13, and 3.14 by adding
-`--group rpc-test`. On Windows, run that group only on 3.12. Also preserve the
-CI cross-runtime lanes in which Python 3.13 and 3.14 central processes call a
-Python 3.12 `supervisor-win` RPC host. RPC lanes must fail, rather than skip, if
-the required Supervisor or adapter executable is missing.
+Run real Supervisor/RPC integration with a separately managed peer environment
+for the supported adapter versions, using `--group rpc-test` where applicable.
+Keep cross-runtime central-to-peer coverage. RPC lanes must fail, rather than
+skip, if the required peer or adapter executable is missing.
 
 ### Frontend changes
 
@@ -161,23 +156,28 @@ never reuse a user's production container name or port.
 - Keep public CLI flags, INI keys, REST paths, SSE payloads, and Vue behavior
   backward compatible unless a documented migration is intentional.
 
-## Checkout and installation rules
+## Package and installation rules
 
-- Operate a reviewed source checkout using editable `uv sync`; no routine
-  wheel/sdist build or publication is required on any branch, including main.
-- Keep `pyproject.toml`, the build backend, and console-script declarations:
-  they support editable installation and all three commands. Each command
-  requires its corresponding extra; RPC adapters need a Supervisor peer.
+- Keep `pyproject.toml`, the build backend, and console-script declarations as
+  a normal installable package. Operational projects install an immutable Git
+  tag with a direct requirement such as
+  `multivisor[web] @ git+https://github.com/SinclairQuantumLab/multivisor.git@<tag>`.
+  Each command requires its corresponding extra; RPC adapters need a Supervisor
+  peer.
+- Release tags are created only from `main` after the required checks pass.
+  Development and integration branches must never be used as production Git
+  dependencies. A release may build a wheel/sdist for validation or explicit
+  publication; never commit those artifacts.
 - Retain explicit frontend package data and test-package exclusions. The
   committed `multivisor/server/dist/` must contain index.html, favicon.ico,
   and referenced assets. Do not hand-edit generated files.
 - Installer-generated intermediate wheels/caches are implementation details,
-  not managed release artifacts. Do not add artifact-deletion hooks.
+  not managed release artifacts.
 - Docker uses locked dependencies and a non-editable install because only its
   environment is copied to the runtime image. Keep its explicit docker extra.
 - Use uv and npm as the maintained environment tools.
-- Keep operational checkouts separate from development and stop services before
-  changing their source or environments. See `PACKAGING.md`.
+- Keep operational projects separate from development and stop services before
+  changing their locked package revision or environment. See `PACKAGING.md`.
 - Never commit environments, distribution artifacts, caches, logs, credentials,
   or local Supervisor state.
 
