@@ -76,7 +76,7 @@ async function submit() {
   if (response.status === 200) {
     store.setIsAuthenticated(true);
     await store.init();
-    await router.push({ path: "/group" });
+    await router.push({ path: "/supervisor" });
     return;
   }
 

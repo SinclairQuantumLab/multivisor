@@ -21,7 +21,7 @@ const applicationRoutes = routes.map((route) => ({
 }));
 
 const redirects = [
-  { path: "/", redirect: "/group" },
+  { path: "/", redirect: "/supervisor" },
   { path: "/view/group", redirect: "/group" },
   { path: "/view/process", redirect: "/process" },
   { path: "/view/supervisor", redirect: "/supervisor" },
@@ -69,7 +69,7 @@ router.beforeEach(async function (to, from, next) {
   }
   if (!store.useAuthentication) {
     if (to.path === "/login") {
-      return next({ path: "/group" });
+      return next({ path: "/supervisor" });
     }
     return next();
   }
@@ -82,7 +82,7 @@ router.beforeEach(async function (to, from, next) {
   }
   // if user is authenticated and navigates to login page -> redirect to home page
   if (to.path === "/login" && store.isAuthenticated) {
-    return next({ path: "/group" });
+    return next({ path: "/supervisor" });
   }
   return next();
 });

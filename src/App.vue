@@ -14,11 +14,11 @@
       <v-divider></v-divider>
       <v-list :items="drawerItems" density="compact" nav>
         <v-list-item
-          prepend-icon="mdi-cog"
-          title="Processes"
-          value="processes"
+          prepend-icon="mdi-desktop-classic"
+          title="Supervisors"
+          value="supervisors"
           router
-          to="/process"
+          to="/supervisor"
         ></v-list-item>
         <v-list-item
           prepend-icon="mdi-account-multiple"
@@ -28,11 +28,11 @@
           to="/group"
         ></v-list-item>
         <v-list-item
-          prepend-icon="mdi-desktop-classic"
-          title="Supervisors"
-          value="supervisors"
+          prepend-icon="mdi-cog"
+          title="Processes"
+          value="processes"
           router
-          to="/supervisor"
+          to="/process"
         ></v-list-item>
       </v-list>
     </v-navigation-drawer>
@@ -62,16 +62,16 @@ const { name } = storeToRefs(store);
 
 const drawerItems = [
   {
-    title: "Processes",
-    value: "process",
-  },
-  {
     title: "Supervisors",
-    value: "Supervisor",
+    value: "supervisor",
   },
   {
     title: "Groups",
     value: "group",
+  },
+  {
+    title: "Processes",
+    value: "process",
   },
 ];
 
