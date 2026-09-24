@@ -211,7 +211,6 @@ def stream():
     response.headers["X-Accel-Buffering"] = "no"
     return response
 
-
 def iter_sse_events(dispatcher, heartbeat_interval=SSE_HEARTBEAT_INTERVAL):
     client = queue.Queue()
     dispatcher.add_listener(client)
