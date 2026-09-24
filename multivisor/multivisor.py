@@ -9,6 +9,7 @@ from blinker import signal
 from configparser import ConfigParser
 
 import zerorpc
+import zmq
 from gevent import spawn, sleep, joinall
 
 from .supervisor_protocol import FAULT_FAILED, RUNNING_STATES
@@ -37,7 +38,7 @@ class Supervisor(dict):
         addr = sanitize_url(url, protocol="tcp", host=name, port=9002)
         self.address = addr["url"]
         self.host = self["host"] = addr["host"]
-        self.server = zerorpc.Client(self.address)
+        self.server = zerorpc.Client(self.address, timeout=5, heartbeat=5)
         # fill supervisor info before events start coming in
         self.event_loop = spawn(self.run)
 
@@ -84,10 +85,15 @@ class Supervisor(dict):
         and the supervisor stays offline until multivisor is restarted.
         """
         try:
+            self.server._events._socket.setsockopt(zmq.LINGER, 0)
+        except Exception:
+            self.log.debug("error setting zero linger on stale client", exc_info=True)
+
+        try:
             self.server.close()
         except Exception:
             self.log.debug("error closing stale client", exc_info=True)
-        self.server = zerorpc.Client(self.address)
+        self.server = zerorpc.Client(self.address, timeout=5, heartbeat=5)
 
     def handle_event(self, event):
         name = event["eventname"]
@@ -197,9 +203,7 @@ class Supervisor(dict):
             self.log.debug("added process group %s", gname)
 
         self.log.info("Updated %s", self.name)
-
-    def _reread(self):
-        return self.server.reloadConfig()
+            return self.server.reloadConfig()#X
 
     def restart(self):
         # do a reread. If there is an error (bad config) inform the user and
