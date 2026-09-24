@@ -203,7 +203,9 @@ class Supervisor(dict):
             self.log.debug("added process group %s", gname)
 
         self.log.info("Updated %s", self.name)
-            return self.server.reloadConfig()#X
+
+    def _reread(self):
+        return self.server.reloadConfig()
 
     def restart(self):
         # do a reread. If there is an error (bad config) inform the user and
