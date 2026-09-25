@@ -4,7 +4,7 @@
     <v-navigation-drawer expand-on-hover permanent rail>
       <v-list>
         <v-list-item
-          prepend-avatar="@/assets/icon/favicon/favicon-48x48.png"
+          prepend-avatar="@/assets/multivisor.png"
           subtitle="v7.0.0"
           :title="name"
           router
